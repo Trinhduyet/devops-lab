@@ -77,26 +77,26 @@ jobs:
           if (( scan_status != 0 )); then
             if [[ -s "$scan_report" ]]; then
               python3 - "$scan_report" <<'PY'
-import json
-import sys
+          import json
+          import sys
 
-try:
-    with open(sys.argv[1], encoding="utf-8") as report_file:
-        findings = json.load(report_file)
-except (OSError, json.JSONDecodeError):
-    print("Gitleaks report could not be parsed; finding details suppressed.")
-    raise SystemExit(0)
+          try:
+              with open(sys.argv[1], encoding="utf-8") as report_file:
+                  findings = json.load(report_file)
+          except (OSError, json.JSONDecodeError):
+              print("Gitleaks report could not be parsed; finding details suppressed.")
+              raise SystemExit(0)
 
-for finding in findings:
-    print("Gitleaks finding: rule=%s file=%s line=%s commit=%s" % (
-        finding.get("RuleID", "unknown"),
-        finding.get("File", "unknown"),
-        finding.get("StartLine", "unknown"),
-        finding.get("Commit", "unknown"),
-    ))
-if not findings:
-    print("Gitleaks reported non-zero without findings; scanner details suppressed.")
-PY
+          for finding in findings:
+              print("Gitleaks finding: rule=%s file=%s line=%s commit=%s" % (
+                  finding.get("RuleID", "unknown"),
+                  finding.get("File", "unknown"),
+                  finding.get("StartLine", "unknown"),
+                  finding.get("Commit", "unknown"),
+              ))
+          if not findings:
+              print("Gitleaks reported non-zero without findings; scanner details suppressed.")
+          PY
             else
               printf 'Gitleaks report unavailable; finding details suppressed.\n'
             fi
