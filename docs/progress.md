@@ -4,8 +4,8 @@ Cập nhật lần cuối: 2026-11-20. Các số liệu là snapshot theo lần 
 
 | Phase/gate | Trạng thái | Bằng chứng thực tế |
 |---|---|---|
-| Repository harness | LOCAL PASS; CI PENDING | `scripts/validate.sh repo` PASS sau targeted fixes; required files phải non-empty, tracked forbidden-path violation không in PASS; `.gitignore` samples và nested rules khớp. PowerShell parser và 7 SSH/SCP/remote-exit/cleanup mock scenarios PASS. Evidence mock scenarios PASS cho fresh manual, duplicate, malformed, stale, wrong provenance và live-state override. ShellCheck local NOT TESTED; workflow run mới đang chờ sau push. |
-| Gitleaks full history | PENDING CI | Workflow đã pin Gitleaks v8.30.1, verify official release SHA-256, fetch full history, scan `--all --full-history --diff-merges=first-parent`, redact output, yêu cầu scanned commit count khớp `git rev-list --all --count`. Chưa có log CI mới chứng minh số lượng; run `44704136448` chỉ ghi `--log-opts=-1` / 1 commit và không được coi là history proof. |
+| Repository harness | LOCAL PASS; CI PASS | `scripts/validate.sh repo` PASS: required files non-empty, tracked forbidden-path violations fail without PASS, `.gitignore` samples/nested rules match. PowerShell parser, seven SSH/SCP/remote-exit/cleanup mock paths and six evidence scenarios PASS. Hosted CI run [44717570887](https://github.com/Trinhduyet/devops-lab/actions/runs/44717570887) passed Linux and Windows jobs, including ShellCheck 0.9.0. ShellCheck is not installed locally. |
+| Gitleaks full history | PASS — 11/11 commits | Workflow pins Gitleaks v8.30.1 and verifies release SHA-256; checkout fetches full history; `gitleaks git --log-opts='--all --full-history --diff-merges=first-parent'` completed with `commits scanned=11`, `reachable commits=11`, exit `0` in run [44717570887](https://github.com/Trinhduyet/devops-lab/actions/runs/44717570887). Output redacts secrets. One `generic-api-key` false positive in historical runbook prose is narrowly allowlisted by fingerprint in `.gitleaksignore`; no broader rule or file is ignored. Earlier run `44704136448` only scanned 1 commit and is not history proof. |
 | Phase 0 — infrastructure inventory | PASS (inventory collection) | Re-run trực tiếp qua Windows OpenSSH helper ngày 2026-11-20; `preflight.sh` và `security-baseline.sh` trả `INVENTORY STATUS=COLLECTED`, remote `bash -n` PASS và upload-temp cleanup PASS. Inventory không phải security/deployment gate. |
 | Phase 0 — optional kernel evidence | NOT TESTED | `net.bridge.bridge-nf-call-iptables` không được kernel expose (`/proc/sys/net/bridge/...` vắng mặt); diagnostic được ghi rõ, không coi output rỗng là PASS. Kernel module/network config không đổi. |
 | Phase 0.1 — SSH authentication | INVENTORY COLLECTED; hardening deferred | Live `sshd -t` and `sshd -T -C` were checked using the actual client/server connection context; Include ordering and Match directives were inspected. Current policy/source values are kept local-only. Hardening chưa apply. |
@@ -23,7 +23,7 @@ Cập nhật lần cuối: 2026-11-20. Các số liệu là snapshot theo lần 
 
 ## Quy tắc đọc evidence
 
-- Local `bash -n`, documentation gate hoặc GitHub CI không thay thế runtime proof trên VPS.
+- Local `bash -n`, documentation gate hoặc GitHub CI không thay thế runtime proof trên VPS. Hosted CI run [44717570887](https://github.com/Trinhduyet/devops-lab/actions/runs/44717570887) passed Linux and Windows jobs; Gitleaks logged 11/11 reachable commits.
 - VPS runtime PASS chỉ áp dụng cho lệnh/lab đã quan sát ở thời điểm trên; không đồng nghĩa provider ingress, public reachability hay production readiness.
 - SSH key-only client proof and live SSH/firewall inventories are separate checks; detailed host posture is kept local-only. No SSH/firewall/network/disk configuration changes were made.
 - `docs/infrastructure.md` contains a sanitized runtime summary; `docs/resource-budget.md` is the source for resource gates; README links to these canonical documents.
