@@ -1,0 +1,2 @@
+# False positive reviewed: the historical runbook line is ordinary prose, not a credential.
+92fcc5ccbaf9ed968a342844c96bcc9ceb3d7d81:docs/runbooks/phase-0-preflight.md:generic-api-key:28
