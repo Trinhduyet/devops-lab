@@ -15,14 +15,16 @@ ssh_host_*_key
 **/ssh_host_*_key
 .ssh/
 **/.ssh/
+secrets/
+**/secrets/
+credentials/
+**/credentials/
 *.kubeconfig
 kubeconfig
 **/.kube/
 **/.kube/**
 admin.conf
 rke2.yaml
-secrets/
-credentials/
 
 # Local inventory and raw machine evidence
 inventory.local
@@ -32,8 +34,11 @@ inventory.local.*
 raw-inventory*
 **/raw-inventory*
 preflight-raw*
+**/preflight-raw*
 security-baseline-raw*
+**/security-baseline-raw*
 docs/evidence/
+**/docs/evidence/
 *.log
 *.log.*
 *.out
@@ -50,6 +55,8 @@ crash.log
 # Local backups and generated state
 backups/
 backup/
+**/backups/
+**/backup/
 *.backup
 *.bak
 *.dump
@@ -62,3 +69,5 @@ backup/
 Thumbs.db
 bin/
 obj/
+**/bin/
+**/obj/

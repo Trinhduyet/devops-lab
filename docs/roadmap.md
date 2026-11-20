@@ -7,11 +7,11 @@ Không chuyển phase theo lịch nếu gate hoặc evidence còn thiếu. Mỗi
 | Lab | Nội dung | Trạng thái/điều kiện |
 |---|---|---|
 | 01 | Linux filesystem, users, permissions, process/thread, package manager | Hoàn tất; ACL NOT TESTED vì utility chưa cài. |
-| 02 | systemd, transient service, process, signals, journalctl | Đang thực hiện; dùng workload giới hạn và cleanup tự động. |
-| 03 | CPU, RAM, load average, memory pressure, disk I/O, cgroups | Kế tiếp; observe-only trước, bounded user-space test nếu có lý do; không OOM/disk exhaustion. |
-| 04 | IPv4/IPv6, CIDR, DNS, TCP/UDP, route, NAT, firewall | Read-only trước; không sửa SSH/firewall/network. |
-| 05 | Filesystem, inode, mount, loopback storage, LVM concepts | Filesystem/inode read-only; mount/loopback chỉ khi có approval/preconditions/cleanup. LVM có thể mô phỏng bằng sơ đồ. |
-| 06 | Bash, exit status, quoting, idempotency, temp files, automation | Automate diagnostics có allowlist; không lưu credentials. |
+| 02 | systemd, transient service, process, signals, journalctl | Hoàn tất; transient units/process/helper files cleanup PASS. |
+| 03 | CPU, RAM, load average, memory pressure, disk I/O, cgroups | Hoàn tất; bounded CPU/memory/task cgroup workload PASS; không OOM/disk exhaustion. |
+| 04 | IPv4/IPv6, CIDR, DNS, TCP/UDP, route, NAT, firewall | Hoàn tất read-only; DNS/NSS query bounded; không sửa SSH/firewall/network. |
+| 05 | Filesystem, inode, mount, storage counters, LVM concepts | Hoàn tất read-only; không mount, partition, format hay cấu hình disk. LVM được giải thích, không tạo PV/VG/LV. |
+| 06 | Bash, exit status, quoting, idempotency, temp files, automation | Hoàn tất: private temporary files, idempotency, explicit exit status và exact cleanup PASS. |
 
 ## Phase 2 — Docker
 

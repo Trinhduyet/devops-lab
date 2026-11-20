@@ -18,15 +18,18 @@ ssh devops-lab
 .\scripts\run-remote.ps1 -Phase phase-0
 .\scripts\run-remote.ps1 -Phase lab-01
 .\scripts\run-remote.ps1 -Phase lab-02
+.\scripts\run-remote.ps1 -Phase lab-03
+.\scripts\run-remote.ps1 -Phase lab-04
+.\scripts\run-remote.ps1 -Phase lab-05
+.\scripts\run-remote.ps1 -Phase lab-06
 ```
 
 `run-remote.ps1` chỉ upload các Bash scripts cần thiết vào remote `mktemp` directory, chạy `bash -n` riêng từng file, gọi phase validator rồi cleanup đúng temporary directory của lần chạy.
 
 ## Current lab và next lab
 
-- **Current:** [Lab 02 — systemd, services, processes, signals và journalctl](labs/02-linux/README.md). Đây là bounded transient service exercise; xem runtime results và `docs/progress.md` trước khi coi là PASS.
-- **Next:** Lab 03 — CPU, RAM, load average, memory pressure, disk I/O và cgroups; chỉ dùng quan sát và workload có giới hạn.
-- Lab 04–06 lần lượt học networking, filesystem/storage concepts và Bash automation; không tạo placeholder skills hoặc workload khi chưa bắt đầu phần tương ứng.
+- **Linux Labs 01–06:** đã chạy và ghi runtime evidence trong [docs/progress.md](docs/progress.md). Networking/storage chỉ quan sát; Lab 03 dùng transient cgroup bounded workload; Lab 06 sample files được cleanup chính xác.
+- **Next:** Docker/containerd vẫn deferred đến khi security/runtime gates phù hợp được xác minh. Xem [roadmap](docs/roadmap.md).
 
 ## Validation commands
 
@@ -37,12 +40,16 @@ ssh devops-lab
 # Trên VPS qua PowerShell; phase-0 và lab checks độc lập
 .\scripts\run-remote.ps1 -Phase phase-0
 .\scripts\run-remote.ps1 -Phase lab-02
+.\scripts\run-remote.ps1 -Phase lab-03
+.\scripts\run-remote.ps1 -Phase lab-04
+.\scripts\run-remote.ps1 -Phase lab-05
+.\scripts\run-remote.ps1 -Phase lab-06
 
 # Public-service gate riêng; cần evidence đã làm sạch
 ./scripts/validate.sh public-services
 ```
 
-Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner.
+Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. Gitleaks scan chạy trên reachable Git history đã fetch; CI log xác nhận số commits scanned và chỉ in kết quả đã redact. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner.
 
 ## Resource constraints
 
@@ -50,6 +57,6 @@ VPS package 4 vCPU/4 GB RAM/40 GB SSD; snapshot quan sát được khoảng 3.8 
 
 ## Quy trình và an toàn
 
-Đọc [AGENTS.md](AGENTS.md) và skill [vps-linux-lab](.agents/skills/vps-linux-lab/SKILL.md) trước khi làm. Quy trình là Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document; risk levels phân biệt diagnostics, lab tạm, system config và thao tác có thể làm mất SSH/dữ liệu. SSH hardening đã chuẩn bị riêng nhưng **chưa áp dụng**: [runbook SSH hardening](docs/runbooks/ssh-hardening.md). Provider firewall vẫn UNKNOWN đến khi được xác minh trong portal.
+Đọc [AGENTS.md](AGENTS.md) và skill [vps-linux-lab](.agents/skills/vps-linux-lab/SKILL.md) trước khi làm. Quy trình là Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document; risk levels phân biệt diagnostics, lab tạm, system config và thao tác có thể làm mất SSH/dữ liệu. SSH hardening đã chuẩn bị riêng nhưng **chưa áp dụng**: [runbook SSH hardening](docs/runbooks/ssh-hardening.md). Public-service gate cần fresh evidence về ingress và recovery path trước khi triển khai.
 
 Không commit credentials, kubeconfig, private SSH keys, raw inventory/logs, host addresses/identifiers hoặc backups. Xem [.gitignore](.gitignore) và workflow [validate.yml](.github/workflows/validate.yml).

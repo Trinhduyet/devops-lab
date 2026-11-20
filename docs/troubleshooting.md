@@ -6,16 +6,16 @@ Chỉ ghi root cause sau khi có bằng chứng. Mỗi case cần đủ: Symptom
 
 | Case | Thu thập ban đầu | Trạng thái |
 |---|---|---|
-| CPU high | `uptime`, `top`, `ps`, `pidstat` | Chưa thực hành |
-| Memory pressure / OOM | `free -h`, `vmstat`, `dmesg -T`, cgroup counters | Chưa thực hành; không tạo áp lực trên production |
-| Disk full / inode | `df -hT`, `df -ih`, `du -xhd1` | Chưa thực hành |
-| Disk I/O bottleneck | `iostat -xz`, `iotop`, `vmstat` | Chưa thực hành |
+| CPU high | `uptime`, `top`, `ps`, `vmstat`, `/proc/stat`, CPU cgroup counters | Lab 03 read-only sample PASS; không tạo CPU saturation ngoài quota nhỏ |
+| Memory pressure / OOM | `free -h`, `vmstat`, `/proc/meminfo`, `memory.events`, kernel journal | Lab 03 đọc memory/cgroup PSI; OOM history NOT TESTED vì journal filter exit 1; không tạo OOM |
+| Disk full / inode | `df -hT`, `df -ih`, `du` bounded | Lab 03 capacity/inode/du snapshot PASS; không xóa file |
+| Disk I/O bottleneck | `/proc/diskstats`, `vmstat` | Lab 03 one-second sample PASS; không có read/write completion nên latency NOT TESTED |
 | Service startup failure | `systemctl status`, `journalctl -u <unit>` | Lab 02 lifecycle PASS; chưa cố ý làm service fail |
 | Process signal handling | `ps`, `kill -TERM`, Bash `wait` status | Lab 02 SIGTERM/wait=143 PASS |
-| Port conflict | `ss -lntup` | Chưa thực hành |
+| Port conflict | `ss -lntup` | Lab 04 listener/bind classes inspected; no port conflict deliberately created |
 | SSH failure | provider console, client `ssh -vv`, server auth logs | Chưa thực hành; không sửa firewall từ SSH duy nhất |
 | Permission denied | `namei -l`, `stat`, `getfacl` | Chưa thực hành |
-| DNS/network timeout | `getent`, `dig`, `ip route`, `ss`, `curl -v` | Chưa thực hành |
+| DNS/network timeout | `getent`, `dig`, `ip route`, `ss`, `curl -v` | Lab 04 bounded `getent` lookup PASS; public inbound/NAT paths remain NOT TESTED |
 | Certificate error | system time, chain, SNI, trust store, expiry | Chưa thực hành |
 
 ## Phase 0 — runtime finding
@@ -37,6 +37,14 @@ Chỉ ghi root cause sau khi có bằng chứng. Mỗi case cần đủ: Symptom
 | Symptoms | Root Cause | Investigation | Resolution | Verification | Prevention |
 |---|---|---|---|---|---|
 | GitHub Actions `Required documentation, Bash syntax and tracked-path gates` thất bại khi gọi ShellCheck | ShellCheck cảnh báo biến retry không được đọc (`SC2034`) và pattern `crash.log` bị bao phủ bởi `*.log` (`SC2221`/`SC2222`) | Tải job log của run `44703366474`; docs, Bash syntax, executable bits và tracked-path guard đã PASS trước khi ShellCheck chặn bước sau | Dùng bộ đếm retry có đọc trong điều kiện vòng lặp; bỏ case thừa và helper validator không sử dụng; làm rõ escaping DNS | Local `validate.sh repo` PASS; Actions run `44703911448` xanh với docs/Bash/path gates, ShellCheck install, ShellCheck và Gitleaks | Giữ ShellCheck trong validator/CI để lỗi lint chặn sớm; chỉ ghi CI PASS sau workflow xanh thực tế |
+| Gitleaks run báo success nhưng scan log chỉ ghi `--log-opts=-1` và 1 commit | Event-based default scan không chứng minh toàn bộ history | So sánh run `44704136448` với số commit reachable; một commit là insufficient evidence | Workflow mới cài Gitleaks CLI version pin + SHA, scan `--all --full-history`, redact scanner output và fail nếu count khác `git rev-list --all --count` | CI verification cho workflow mới đang pending; chưa ghi PASS trước khi log xác nhận count | Tách history scan khỏi action default và bắt buộc log có scanned count bằng số commit reachable |
+
+## Lab 03 — runtime findings
+
+| Symptoms | Root Cause | Investigation | Resolution | Verification | Prevention |
+|---|---|---|---|---|---|
+| Lab dừng trước diagnostics vì kiểm tra `cpu.max`/`memory.max` ở cgroup root | Host bật CPU/memory controllers nhưng root cgroup không expose per-cgroup limit files | Đọc `/sys/fs/cgroup/cgroup.controllers`, hierarchy và per-service files read-only | Gate đổi sang xác nhận controllers; limit files được kiểm tra trong transient systemd service cgroup | `cpu.max=20000 100000`, `memory.max=100663296`, `pids.max=4`; bounded run và cleanup PASS | Kiểm tra file ở đúng cgroup scope; không dùng thiếu root control file để suy luận controller unavailable |
+| gawk tính CPU/resource gate báo lỗi | Tên biến `system` và `load` trùng built-in functions | Live run ghi syntax errors ngay ở `/proc/stat` delta và headroom awk | Đổi tên thành `sys_ticks` và `one_minute` | Live diagnostics tiếp tục; bounded exercise PASS | Chạy `bash -n` và ShellCheck; runtime-check awk trên target Linux |
 
 ## Kubernetes (sau khi đạt gate)
 

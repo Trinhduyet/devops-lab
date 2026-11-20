@@ -24,6 +24,9 @@ jobs:
       - name: Required documentation, Bash syntax and tracked-path gates
         run: ./scripts/validate.sh repo
 
+      - name: Exercise evidence freshness, provenance and duplicate-key checks
+        run: bash scripts/tests/test-validator-evidence.sh
+
       - name: Install pinned ShellCheck package
         run: |
           sudo apt-get update
@@ -33,12 +36,64 @@ jobs:
       - name: ShellCheck
         run: shellcheck scripts/*.sh
 
-      # gitleaks-action v3.0.0 pinned to its verified full commit SHA.
-      - name: Scan repository history for secrets
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+      - name: Install pinned Gitleaks release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_VERSION: 8.30.1
-          GITLEAKS_ENABLE_COMMENTS: "false"
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
-          GITLEAKS_ENABLE_SUMMARY: "true"
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --location --silent --show-error "$url" --output "$archive"
+          printf '%s  %s\n' "$GITLEAKS_SHA256" "$archive" | sha256sum --check --status
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" version
+          printf '%s\n' "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Scan all reachable commits and merge diffs with redaction
+        run: |
+          set -euo pipefail
+          reachable_count="$(git rev-list --all --count)"
+          if [[ ! "$reachable_count" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'FAIL: no commits were reachable from the fetched Git refs.\n' >&2
+            exit 1
+          fi
+          printf 'Reachable commits across all local refs: %s\n' "$reachable_count"
+          set +e
+          scan_output="$(gitleaks git --redact=100 --exit-code=2 --log-opts='--all --full-history --diff-merges=first-parent' 2>&1)"
+          scan_status=$?
+          set -e
+          scanned_count="$(grep -Eo '[0-9]+ commits scanned' <<< "$scan_output" | tail -n 1 | awk '{print $1}')"
+          if [[ ! "$scanned_count" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'FAIL: Gitleaks did not report a non-zero full-history scan count (exit=%s). Output suppressed.\n' "$scan_status" >&2
+            exit 1
+          fi
+          printf 'Gitleaks full-history scan: commits scanned=%s; reachable commits=%s; exit=%s.\n' "$scanned_count" "$reachable_count" "$scan_status"
+          if [[ "$scanned_count" != "$reachable_count" ]]; then
+            printf 'FAIL: Gitleaks scan count does not match all commits reachable from fetched refs.\n' >&2
+            exit 1
+          fi
+          if (( scan_status != 0 )); then
+            printf 'FAIL: Gitleaks found a policy violation or could not complete the scan; redacted scanner output was suppressed.\n' >&2
+            exit "$scan_status"
+          fi
+
+  windows-powershell:
+    name: PowerShell syntax and remote-helper mocks
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: ./scripts/validate-powershell.ps1
+
+      - name: Exercise SSH, SCP, remote-exit and cleanup paths with mocks
+        shell: pwsh
+        run: ./scripts/tests/test-run-remote.ps1

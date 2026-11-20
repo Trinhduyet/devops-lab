@@ -1,40 +1,39 @@
 # Hạ tầng lab
 
-## Inventory đã quan sát
+## Target envelope và evidence
 
-Nguồn chính là preflight trực tiếp qua Windows OpenSSH alias `devops-lab`; các output người dùng gửi trước đó được dùng để đối chiếu. Snapshot trực tiếp mới nhất được ưu tiên khi có khác biệt. Hostname, machine/boot ID, địa chỉ đầy đủ và fingerprint không được lưu tại đây.
+Target budget do người dùng cung cấp: một VPS nhỏ, 4 vCPU, 4 GB RAM và 40 GB SSD. Các runtime measurements bên dưới được thu trực tiếp qua SSH vào ngày 2026-11-20; raw inventories, host identifiers, exact network values và current host security posture được giữ local-only, không lưu trong repository công khai.
 
-| Hạng mục | Quan sát | Đánh giá |
+| Hạng mục | Runtime evidence đã làm sạch | Giới hạn |
 |---|---|---|
-| OS/kernel | Ubuntu 24.04.5 LTS, x86-64, kernel 6.8.0-142-generic | Phù hợp làm Linux lab; xác minh compatibility theo bản runtime trước khi cài |
-| CPU | 4 vCPU | Đạt ngưỡng kubeadm và CPU khuyến nghị của RKE2 |
-| RAM/swap | 3.8 GiB total, 3.3 GiB available tại lúc đo, không có swap | Đủ cho Linux lab; Kubernetes workload phải rất nhẹ; RKE2 ở sát mức RAM tối thiểu |
-| Disk | Disk 40 GB; root ext4 khoảng 37.7 GiB, 35.4 GiB available lúc đo; `ROTA=0` | Tạm đủ cho lab nhỏ; thuộc tính thiết bị ảo không chứng minh media vật lý |
-| Virtualization/cgroups | KVM, cgroup v2; controllers `cpu`, `memory`, `io`, `pids` có mặt | Thuận lợi cho runtime; cần kiểm tra overlay/bridge modules trước Docker |
-| Network | IPv6 global trên một interface, IPv4 trên interface riêng; IPv4 và IPv6 đều có default route qua interface tương ứng; không thấy overlay interface | Không thấy public IPv4 trực tiếp; NAT/egress chưa kiểm tra. Địa chỉ/gateway không lưu trong repo |
-| SSH/auth | Non-interactive ED25519 key được offer/accept; session peer IPv6, port 22. `sshd -t` PASS; `sshd -T -C` effective values: `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no` | Key auth PASS; password authentication/root login vẫn được phép theo server config. Chưa đổi SSH; source address không lưu |
-| WARP/Tailscale | `warp-svc` và `tailscaled` inactive; `warp-cli` không có trên VPS | Không có WARP/Tailscale interface ở snapshot hiện tại; không có thay đổi WARP nào được thực hiện |
-| Firewall | `ufw status` **inactive**, 0 saved/numbered user rules; IPv4/IPv6 `INPUT` policy `ACCEPT`. `/etc/default/ufw`: `IPV6=yes`, input `DROP`, output `ACCEPT`, forward `DROP`; nftables tables/chains hiện diện | `systemd.ufw_unit=active` không có nghĩa firewall bật. Nếu enable trước khi thêm SSH allow rule, SSH có thể bị chặn; provider firewall chưa xác minh |
-| DNS/listeners | Resolver hoạt động trong snapshot trước; 22/TCP bind wildcard, 53/TCP và 53/UDP bind loopback | Addresses cụ thể không lưu. Public DNS authoritative chưa xác minh |
-| Forwarding/kernel modules | `net.ipv4.ip_forward=0`; bridge sysctl không tồn tại; `overlay`/`br_netfilter` có trong kernel package nhưng chưa nạp | Module availability PASS; Docker/Kubernetes runtime chưa sẵn sàng |
-| Runtime | Không tìm thấy Docker, Compose, containerd, ctr hoặc crictl | Chưa cài runtime |
-| Host health | systemd running, không có failed units, clock synchronized | PASS cho snapshot thời điểm đo |
-| Provider/package/hạn sử dụng | Chưa rõ | Xác minh từ provider panel |
+| OS/kernel | Ubuntu 24.04 LTS, x86-64, kernel dòng 6.8 | Snapshot; compatibility phải được kiểm tra lại trước khi pin runtime |
+| CPU | 4 guest-visible vCPU | Không chứng minh physical-host capacity |
+| RAM/swap | `MemTotal` xấp xỉ 3.8 GiB, `MemAvailable` xấp xỉ 3.3 GiB; không swap | Giá trị thay đổi theo tải; không dùng swap để thay RAM Kubernetes |
+| Disk | Virtual disk theo target budget; root filesystem ext4, ROTA=0; sample I/O một giây không đủ để đo latency | Không chứng minh backing media vật lý hay sustained IOPS |
+| Virtualization/cgroups | KVM, cgroup v2; CPU/memory/io/pids controllers quan sát được; transient service có quota/cap | Root cgroup không nhất thiết cung cấp limit files; inspect đúng service cgroup |
+| Networking | Lab 04 xác nhận route lookup và resolver hoạt động tại thời điểm chạy | Exact addresses, prefixes, routes, listener details và firewall policy không được lưu công khai; inbound reachability chưa thử |
+| SSH/security | SSH key-only client check thành công; live effective configuration được thu bằng đúng connection context | Current authentication policy và config source details chỉ lưu local; chưa áp dụng hardening |
+| Existing software | Docker, Compose, containerd, `ctr` và `crictl` chưa được phát hiện trong inventory | Recheck ngay trước khi cài runtime |
+| Health | systemd hoạt động; snapshot không có failed units | Chỉ là snapshot thời điểm kiểm tra |
+
+## Runtime learning results
+
+- Phase 0 inventory và Labs 01–06 đã chạy trực tiếp bằng Windows OpenSSH helper. Kết quả và giới hạn chi tiết được ghi trong [progress](progress.md) và từng lab.
+- Lab 03 chạy workload tạm qua systemd với CPU, memory, task và duration limits; unit, process, cgroup và upload directory đã được xác minh cleanup.
+- Lab 04 chỉ đọc route/socket state và thực hiện một bounded NSS lookup; không thay đổi network.
+- Lab 05 chỉ đọc filesystem/disk counters và chạy bounded `du`; không thay đổi disk.
+- Lab 06 chỉ tạo dữ liệu tạm trong private directory và đã xóa chính xác.
+- Các kết quả là snapshots; public ingress, NAT egress, authoritative DNS và sustained disk performance chưa được chứng minh.
 
 ## Network và bảo mật
 
-- SSH config inspection đã xác nhận `/etc/ssh/sshd_config` include `sshd_config.d/*.conf`; các drop-ins có auth directive gồm `10-topcloud-sshd.conf`, `50-cloud-init.conf` và `60-cloudimg-settings.conf`. Effective `PasswordAuthentication` vẫn `yes`; chi tiết và candidate hardening nằm trong [SSH hardening runbook](runbooks/ssh-hardening.md). Không thay đổi SSH.
-
-- Read-only assessment và Linux Fundamentals được chạy trực tiếp bằng Windows OpenSSH từ runtime hiện tại. Mọi số liệu là snapshot theo thời điểm, không phải giám sát liên tục.
-- Chưa đo public IPv4 egress/NAT, inbound IPv6 từ mạng ngoài, DNS authoritative, disk I/O hoặc firewall ở provider.
-- `ufw` thực tế đang inactive, không có user rules đã lưu, và active INPUT policy là ACCEPT. Config UFW đặt input DROP; bật mà chưa có SSH allow rule có thể cắt SSH IPv6 hiện tại. `sshd` nghe mọi interface; server policy còn cho phép root login và password authentication. Nếu provider firewall không chặn, SSH có thể nhận kết nối qua IPv6.
-- Một output cũ do người dùng chạy có Tailscale interface/rules; snapshot trực tiếp mới nhất không có interface/rules đó và `tailscaled` inactive. Không dựa vào Tailscale làm đường firewall hiện tại.
-- SSH session trực tiếp hiện tại dùng IPv6. Client dùng WARP theo thông tin người dùng; chưa xác minh egress/source ổn định để tạo allowlist. Không bật UFW nếu chưa có rule đúng path, console rollback, rollback timer và SSH session thứ hai.
-- Docker bridge port publishing có thể bypass UFW; firewall host/provider và cách bind port phải được thiết kế cùng nhau trước khi chạy container.
-- IPv4 forwarding đang tắt và modules chưa được xác minh. Không tự bật sysctl/nạp module trước khi chọn Docker/Kubernetes và hiểu mục đích từng thay đổi.
-- Cloudflare WARP được nêu là trên execution client; service WARP trên VPS hiện inactive. Không tắt WARP trên client. Không mở Kubernetes API, etcd, kubelet hoặc NodePort ra Internet mặc định.
-- Bản output gốc chứa thông tin định danh và địa chỉ mạng; không commit raw output vào Git.
+- Tài liệu công khai không lưu địa chỉ máy, route values, raw rule dumps, current SSH effective values hay firewall posture. Xem output live trực tiếp và không copy raw data vào Git.
+- Chưa thực hiện thay đổi SSH, firewall, network, package, partition, mount hoặc cluster state trong các lab read-only.
+- Trước khi bật dịch vụ public, xác minh host/provider ingress, SSH recovery path, console/out-of-band recovery và resource gates. `scripts/validate.sh public-services` yêu cầu live host checks và evidence thủ công còn fresh.
+- Docker bridge publishing có thể cài forwarding/NAT rules ngoài đường lọc UFW thông thường; bind lab service vào localhost và dùng SSH tunnel cho tới khi ingress được review.
+- Chưa thay đổi IPv4 forwarding hoặc nạp kernel modules. Kiểm tra nhu cầu riêng trước Docker/Kubernetes.
+- Không mở Kubernetes API, etcd, kubelet, NodePort hoặc application ports ra Internet mặc định.
 
 ## Kết luận hiện tại
 
-Có thể tiếp tục Linux và networking labs chỉ đọc. Docker/kubeadm/RKE2 cần qua firewall và runtime compatibility checks. Rancher cùng các stack nặng được hoãn do giới hạn RAM. Không dùng Swap để bù RAM.
+Có thể tiếp tục Linux, networking, storage và Bash labs chỉ đọc hoặc giới hạn tài nguyên. Docker/containerd và Kubernetes vẫn deferred cho tới khi security, runtime compatibility và resource gates phù hợp được xác minh lại trên host. Không dùng Swap để bù RAM.

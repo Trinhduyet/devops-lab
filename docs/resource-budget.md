@@ -29,10 +29,10 @@ Các ngưỡng này là planning gates. Chốt budget sau khi xem preflight và 
 
 ## Kết quả cho VPS hiện tại
 
-Preflight trực tiếp qua SSH alias ghi nhận 4 vCPU, 3.8 GiB RAM, khoảng 3.3 GiB available, không swap, khoảng 35 GiB root filesystem còn trống, KVM và cgroup v2.
+Preflight ngày 2026-11-20 qua SSH và Lab 03 ghi nhận 4 guest-visible vCPU, `MemTotal=4,009,132 kB` (3.8 GiB), `MemAvailable` khoảng 3.5 triệu kB (3.3 GiB), không swap, root ext4 khoảng 37.7 GiB với 35.4 GiB còn trống, KVM và cgroup v2. Đây là snapshot thời điểm chạy, không phải capacity guarantee của physical host.
 
 - **Linux và networking:** có thể tiếp tục ngay với diagnostics và bài học không thay đổi cấu hình.
-- **Docker/ASP.NET Core:** phần cứng có vẻ đủ cho một API lab nhỏ, nhưng chưa cài vì UFW đang inactive và INPUT policy là ACCEPT. Docker tạo firewall/NAT rules; port publish có thể đi vòng qua UFW. Xác minh provider firewall và SSH client/WARP path trước. API lab đầu tiên nên bind localhost và truy cập bằng SSH tunnel.
+- **Docker/ASP.NET Core:** chỉ cân nhắc API lab nhỏ sau khi host/provider ingress, SSH recovery path và Docker firewall behavior được review. Docker tạo firewall/NAT rules; port publishing có thể đi theo đường khác với UFW. API lab đầu tiên nên bind localhost và truy cập bằng SSH tunnel.
 - **kubeadm:** CPU đạt; RAM cao hơn mức tối thiểu nhưng chỉ 4 GiB tổng. Chỉ cân nhắc một cluster single-node tối giản sau khi Phase 1 đạt gate; không chạy observability stack hay nhiều workloads.
 - **RKE2:** 4 GiB đạt floor tài liệu nhưng thấp hơn khuyến nghị 8 GiB. Chưa khuyến nghị cài trên VPS này cùng API workload và OS.
 - **Rancher:** deferred sang máy local có thêm RAM. Rancher trên upstream Kubernetes không phù hợp với VPS 4 GiB; Docker-based Rancher 4 GiB là sizing development/testing và gần như không có headroom cho host.
@@ -42,14 +42,15 @@ Thứ tự thực hành giữ riêng kubeadm và RKE2; trước khi chuyển run
 
 ## Gate bảo mật và kernel còn mở
 
-- Không cài Docker hoặc expose API cho tới khi host/provider ingress firewall được kiểm soát; hiện `ufw` inactive và INPUT policy ACCEPT.
-- `sshd` đang nghe mọi interface; SSH session hiện tại dùng IPv6. WARP/Tailscale service không hoạt động trên VPS. Chưa thể chọn source allowlist cho SSH đến khi xác định WARP egress/client path và provider ingress policy.
-- UFW không có user rules đã lưu. Không bật UFW cho tới khi rule bảo đảm SSH qua đường IPv6 hiện tại, provider console/out-of-band access và SSH session thứ hai đã được kiểm chứng; rollback dự kiến là `ufw disable`. Đây là thay đổi có thể ngắt kết nối và cần xác nhận rõ ràng.
+- Không cài Docker hoặc expose API cho tới khi host/provider ingress firewall và management recovery path được kiểm soát.
+- Không bật firewall hoặc thay đổi SSH/network trước khi ingress path, verified provider console/out-of-band access, backup, rollback timer và SSH session thứ hai đã được kiểm chứng. Đây là các thay đổi có thể ngắt kết nối và cần xác nhận rõ ràng.
 - `ip_forward=0`, bridge sysctl thiếu và overlay/br_netfilter chưa thấy được nạp. Trước khi cài Docker, xác nhận `modinfo overlay`/`modinfo br_netfilter`, rồi chọn thay đổi đúng cho Docker; kubeadm/RKE2 sẽ có preflight riêng.
 - Docker Engine tự quản lý firewall cho bridge network; tài liệu Docker cảnh báo port publish có thể bypass UFW. Không dùng UFW làm lớp kiểm soát duy nhất cho public container ports; lab đầu bind `127.0.0.1`, public exposure cần thiết kế riêng theo Docker `DOCKER-USER`/backend tương ứng.
 
 ## Budget cho Linux labs
 
 - Lab 02 chỉ chạy một transient `sleep` service tối đa 40 giây và một child process bị kết thúc ngay bằng SIGTERM; không stress CPU/RAM/disk. Journal marker nhỏ là evidence có chủ đích.
-- Lab 03 bắt đầu bằng metrics read-only (`uptime`, `free`, `/proc`, cgroup counters, `df`, `vmstat`). Nếu có workload minh họa, nó phải giới hạn duration, process count và memory rõ ràng; không gây host-wide OOM hoặc lấp đầy disk.
+- Lab 03 final read-only sample cho load `0.00/0.00/0.00`, CPU khoảng `0.0% user / 0.2% system / 99.8% idle`, `0.0% iowait/steal`, không swap, root fs `6%`, inode `3%`; PSI avg10/60/300 đều zero trong snapshot. Một giây không có disk operations nên I/O latency là `NOT TESTED`.
+- Lab 03 transient workload đã chạy với `CPUQuota=20%` (`cpu.max=20000 100000`), `MemoryMax=96M` (`memory.max=100663296`), `TasksMax=4` (`pids.max=4`) và `RuntimeMaxSec=10s`; cấp phát/touch 24 MiB, peak RSS `35072 KiB`, cgroup current `29396992` bytes, throttle count `25`. Memory dùng nhỏ hơn hard cap; không thử chạm giới hạn hoặc kích hoạt OOM. Unit, process, cgroup và remote upload temp đều cleanup PASS.
+- Cgroup root liệt kê CPU/memory controllers nhưng không expose `cpu.max`/`memory.max` cho root hierarchy. Bounded service cgroup có đủ control files và là nơi đọc effective quota/usage; không dùng thiếu root control file để kết luận controller không khả dụng.
 - Host firewall/provider SSH security là gate riêng cho public services. Nó không chặn Phase 1 Linux exercises mà không mở port hay sửa host configuration.

@@ -76,7 +76,7 @@ Trạng thái ghi nhận ngày 2026-11-20; process/memory/disk counts là snapsh
 | Kernel/architecture | kernel `6.8.0-142-generic`, `x86_64`, `LONG_BIT=64` | PASS; distro userspace Ubuntu 24.04.5 |
 | CPU | 4 CPU rows, 1 thread/core, 4 cores, 1 socket; `lscpu` báo VT-x | 4 vCPU hiện có; flag virtualization không chứng minh nested VM đã cấu hình |
 | Process/thread | 143 process rows, 178 thread rows tại lúc đo | Minh họa số lượng; thay đổi theo thời gian |
-| Account | `root`, UID/GID 0; shell `/bin/bash`; group `sudo` tồn tại | PASS; không liệt kê account khác |
+| Execution identity | Inventory ran in an administrative context; no account list is published | Detailed account and privilege assignments are kept local-only |
 | Permissions | `/etc/passwd` 644; `/etc/shadow` 640 root:shadow; `/tmp` 1777 | Metadata đọc được bằng root |
 | Environment/shell | `SHELL=/bin/bash`, `LANG=C.UTF-8`, Bash 5.2.21 | PASS; environment chỉ được allowlist |
 | Package tools | dpkg arch `amd64`, apt 2.8.4; Bash package 5.2.21-2ubuntu4 | Chỉ đọc package database/cache; không update/install |
@@ -99,7 +99,7 @@ Không commit process list, user list đầy đủ, IP, hostname, raw preflight 
 
 Inventory không đổi system state. Demo tạo đúng một file test và gọi `chmod` trên file đó; trap dọn file/directory. Không có dữ liệu cần backup. Nếu SSH bị ngắt giữa demo, kiểm tra đường dẫn `/tmp/devops-lab01.*` trước khi dọn thủ công.
 
-Không lưu credentials hay output chứa hostname/IP vào Git. Nếu credential từng xuất hiện trong ảnh/chat, không dùng lại và thu hồi/đổi theo quy trình của provider. Cấu hình `sshd` cho phép password/root login là WARNING riêng trong [security runbook](../../docs/runbooks/phase-0-preflight.md).
+Không lưu credentials hay output chứa hostname/IP vào Git. Nếu credential từng xuất hiện trong ảnh/chat, không dùng lại và thu hồi/đổi theo quy trình của provider. SSH hardening là một security gate riêng trong [security runbook](../../docs/runbooks/phase-0-preflight.md).
 
 ## 8. Câu hỏi và đáp án ngắn
 

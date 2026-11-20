@@ -65,8 +65,22 @@ if bash_version=$(bash --version); then head -n 1 <<< "$bash_version"; else stat
 section 'Package architecture and package-management tools (no update/install)'
 if command -v dpkg >/dev/null 2>&1; then run dpkg --print-architecture; else printf '[NOT TESTED dpkg unavailable]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
 if command -v apt-get >/dev/null 2>&1; then run apt-get --version; else printf '[NOT TESTED apt-get unavailable]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
-if command -v dpkg-query >/dev/null 2>&1; then run dpkg-query -W '-f=${binary:Package} ${Version}\n' bash libc6 systemd openssh-server acl; else printf '[NOT TESTED dpkg-query unavailable]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
+if command -v dpkg-query >/dev/null 2>&1; then run dpkg-query -W '-f=${binary:Package} ${Version}\n' bash libc6 systemd openssh-server; else printf '[NOT TESTED dpkg-query unavailable]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
 if command -v apt-cache >/dev/null 2>&1; then run apt-cache policy bash; else printf '[NOT TESTED apt-cache unavailable]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
+
+section 'Optional ACL package state (does not affect required package inventory)'
+if command -v dpkg-query >/dev/null 2>&1; then
+  if acl_package=$(dpkg-query -W '-f=${db:Status-Status} ${Version}\n' acl 2>/dev/null); then
+    if [[ "$acl_package" == installed* ]]; then printf 'Optional package acl: %s\n' "$acl_package"; else printf '[NOT TESTED optional ACL package is not installed]\n'; OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1)); fi
+  else
+    status=$?
+    printf '[NOT TESTED optional ACL package query unavailable (exit=%s); required package inventory remains independent]\n' "$status"
+    OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1))
+  fi
+else
+  printf '[NOT TESTED optional ACL package query requires dpkg-query]\n'
+  OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1))
+fi
 
 if [[ "${1:-}" == '--permissions-demo' ]]; then
   section 'Disposable /tmp permissions and ACL exercise'

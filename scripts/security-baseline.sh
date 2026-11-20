@@ -28,21 +28,46 @@ else
 fi
 if have sshd; then
   effective=''
+  if sshd -t >/dev/null 2>&1; then
+    printf 'sshd -t: PASS\n'
+  else
+    status=$?
+    failed_probe 'sshd -t' "$status"
+  fi
   if [[ -n "${SSH_CONNECTION:-}" ]]; then
-    read -r client_address _ server_address server_port <<< "$SSH_CONNECTION"
-    if context=$(sshd -T -C "user=root,host=$(hostname),addr=$client_address,laddr=$server_address,lport=$server_port"); then
+    if base_context=$(sshd -T); then
+      usedns=$(awk '$1 == "usedns" {print $2; count++} END {if (count != 1) exit 1}' <<< "$base_context") || usedns=unknown
+      connection_host=$client_address
+      if [[ "$usedns" == yes ]]; then
+        if reverse=$(getent hosts "$client_address" 2>/dev/null); then connection_host=$(awk 'NF >= 2 {print $2; exit}' <<< "$reverse"); else connection_host=''; fi
+      elif [[ "$usedns" != no ]]; then
+        connection_host=''
+      fi
+      if [[ -z "$connection_host" ]]; then
+        unknown 'client host for sshd -T -C could not be resolved consistently with UseDNS.'
+        ERRORS=$((ERRORS + 1))
+      elif context=$(sshd -T -C "user=$(id -un),host=$connection_host,addr=$client_address,laddr=$server_address,lport=$server_port"); then
+        printf 'sshd -T -C context: client address/hostname, server address and port from this live session; addresses redacted.\n'
       effective=$context
+      else
+        status=$?
+        failed_probe 'sshd -T -C (live client context)' "$status"
+      fi
     else
       status=$?
-      failed_probe 'sshd -T -C (connection context)' "$status"
+      failed_probe 'sshd -T (base context)' "$status"
     fi
   else
     if context=$(sshd -T); then effective=$context; else status=$?; failed_probe 'sshd -T' "$status"; fi
   fi
   if [[ -n "$effective" ]]; then
-    filtered=$(awk '$1 ~ /^(port|permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|authenticationmethods|authorizedkeysfile|allowusers|denyusers)$/ { if ($1 == "authorizedkeysfile") print $1, "<configured>"; else print }' <<< "$effective")
+    filtered=$(awk '$1 ~ /^(usedns|port|permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|authenticationmethods|authorizedkeysfile|allowusers|denyusers)$/ { if ($1 == "authorizedkeysfile") print $1, "<configured>"; else if ($1 == "allowusers" || $1 == "denyusers") print $1, "<configured>"; else print }' <<< "$effective")
     if [[ -n "$filtered" ]]; then
       printf '%s\n' "$filtered"
+      for directive in permitrootlogin pubkeyauthentication passwordauthentication kbdinteractiveauthentication; do
+        value_count=$(awk -v key="$directive" '$1 == key {count++} END {print count+0}' <<< "$effective")
+        if [[ "$value_count" != 1 ]]; then unknown "effective sshd output contains $value_count canonical $directive entries (expected 1)."; ERRORS=$((ERRORS + 1)); fi
+      done
     else
       unknown 'effective SSH output did not contain the expected authentication directives.'
       ERRORS=$((ERRORS + 1))
@@ -57,36 +82,69 @@ section 'SSH configuration sources (values are sanitized)'
 if have python3 && [[ -r /etc/ssh/sshd_config ]]; then
   if config_summary=$(python3 - <<'PY'
 from pathlib import Path
-import re
+import glob
+import shlex
 
 root = Path('/etc/ssh')
-paths = [root / 'sshd_config']
-dropins = root / 'sshd_config.d'
-if dropins.is_dir():
-    paths.extend(sorted(dropins.glob('*.conf')))
 auth = {'pubkeyauthentication', 'passwordauthentication', 'permitrootlogin',
         'kbdinteractiveauthentication', 'authenticationmethods', 'allowusers', 'denyusers'}
-for path in paths:
+sequence = 0
+active = set()
+
+def label(path):
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.name
+
+def scan(path, match_scope=False, depth=0):
+    global sequence
+    path = path.resolve()
+    if depth > 16:
+        raise RuntimeError('Include nesting exceeds inspection limit')
+    if path in active:
+        raise RuntimeError('Include cycle found')
     if not path.is_file():
-        continue
-    for raw in path.read_text(errors='replace').splitlines():
-        line = raw.strip()
-        if not line or line.startswith('#'):
-            continue
-        key = line.split(None, 1)[0].lower()
-        if key == 'include':
-            print(f'{path.name}: Include <configured>')
-        elif key == 'match':
-            print(f'{path.name}: Match <condition present>')
-        elif key in auth:
-            value = line.split(None, 1)[1] if len(line.split(None, 1)) == 2 else '<missing>'
-            if key in {'allowusers', 'denyusers'}:
-                value = '<configured>'
-            print(f'{path.name}: {key} {value}')
+        return match_scope
+    active.add(path)
+    try:
+        for number, raw in enumerate(path.read_text(errors='replace').splitlines(), 1):
+            try:
+                fields = shlex.split(raw, comments=True, posix=True)
+            except ValueError as error:
+                raise RuntimeError(f'cannot parse {label(path)}:{number}: {error}') from error
+            if not fields:
+                continue
+            key = fields[0].lower()
+            if key == 'include':
+                for pattern in fields[1:]:
+                    include_pattern = pattern if pattern.startswith('/') else str(root / pattern)
+                    matches = sorted(glob.glob(include_pattern))
+                    for included in matches:
+                        match_scope = scan(Path(included), match_scope, depth + 1)
+                continue
+            if key == 'match':
+                match_scope = True
+                sequence += 1
+                scope = 'match-scope' if len(fields) > 1 else 'match-scope-invalid'
+                print(f'{sequence:03d} {label(path)}:{number} {scope} Match <conditions redacted>')
+            elif key in auth:
+                sequence += 1
+                scope = 'match-scope' if match_scope else 'global-scope'
+                value = ' '.join(fields[1:]) if len(fields) > 1 else '<missing>'
+                if key in {'allowusers', 'denyusers'}:
+                    value = '<configured>'
+                print(f'{sequence:03d} {label(path)}:{number} {scope} {key} {value}')
+    finally:
+        active.remove(path)
+    return match_scope
+
+scan(root / 'sshd_config')
 PY
   ); then
     if [[ -n "$config_summary" ]]; then
       printf '%s\n' "$config_summary"
+      printf 'Source order is shown for active Includes and Match scopes; sshd -T -C above is the authoritative effective result for this connection.\n'
     else
       unknown 'no active Include, Match or authentication directives found in inspected files.'
     fi

@@ -2,17 +2,17 @@
 
 ## Phạm vi và trạng thái
 
-Đây là kế hoạch riêng cho SSH. Chưa sửa `sshd_config`, drop-in, SSH service, firewall hay network. SSH là đường quản trị duy nhất đã được dùng để xác minh VPS; thay đổi chỉ được thực hiện sau khi preconditions hoàn tất và có explicit approval cho đúng change set này.
+Đây là kế hoạch riêng cho SSH. Chưa sửa `sshd_config`, drop-in, SSH service, firewall hay network. Giữ policy ở trạng thái chưa apply cho tới khi preconditions hoàn tất và change set cụ thể được xác nhận.
 
 Không dựa vào gate này để chặn Linux labs an toàn. Public-service gate nằm riêng trong `scripts/validate.sh public-services`.
 
-## Findings đã xác minh trực tiếp
+## Assessment method
 
-- `sshd -t`: **PASS** ở snapshot kiểm tra.
-- Effective settings với `sshd -T -C` theo SSH session hiện tại: `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no`, `authenticationmethods any`.
-- `/etc/ssh/sshd_config` có `Include` tại dòng 12; các file quan sát được trong `sshd_config.d` được xử lý theo tên: `10-topcloud-sshd.conf`, `50-cloud-init.conf`, `60-cloudimg-settings.conf`. Cả TopCloud và cloud-init drop-in đặt `passwordauthentication yes`; drop-in `60-cloudimg-settings.conf` đặt `no`, nhưng effective setting vẫn là `yes` vì directive được lấy trước đó. `10-topcloud-sshd.conf` đặt `permitrootlogin yes`.
-- SSH key-only từ client đã PASS. Đây không chứng minh server đã tắt password auth.
-- Provider firewall và rescue/Web Console vẫn **UNKNOWN** cho tới khi được xác minh trong TopCloud Portal.
+`sshd -t` kiểm tra syntax; `sshd -T -C` là canonical effective output sau khi OpenSSH áp dụng Include, source ordering, global first-obtained settings, `Match` blocks và connection context. Một dòng cấu hình trong file riêng lẻ không chứng minh effective policy.
+
+`scripts/security-baseline.sh` lấy bốn trường từ chính SSH session hiện hành (`SSH_CONNECTION`): client address/port và server address/port. Với `UseDNS yes`, client hostname được phân giải theo reverse lookup; với `UseDNS no`, client address được dùng làm host value. Không bao giờ dùng hostname của server làm client `host`. Script kiểm tra syntax, đếm đúng một canonical output cho từng auth directive, rồi đọc Include/Match sources theo OpenSSH order. Parse lỗi, context thiếu hoặc output trùng/thiếu được báo `UNKNOWN`/failure, không suy luận an toàn từ output rỗng.
+
+Client key-only success là một phép thử riêng; nó không chứng minh server đã tắt password authentication. Detailed live snapshot/config source paths được giữ local-only, không đưa vào repository công khai.
 
 ## Candidate policy
 
@@ -23,14 +23,14 @@ PermitRootLogin prohibit-password
 KbdInteractiveAuthentication no
 ```
 
-Config hiện include `/etc/ssh/sshd_config.d/*.conf` ở dòng 12, trước các global directive còn lại. Nếu kiểm tra lại vẫn cho thấy đúng thứ tự, candidate có thể là drop-in mới `00-devops-lab-hardening.conf`, đứng trước `10-topcloud-sshd.conf`. Không chỉnh/xóa các file do TopCloud hoặc cloud-init quản lý. Luôn kiểm tra hiệu lực bằng `sshd -T -C`; không dựa riêng vào nội dung file mới.
+Trước khi chọn vị trí candidate, kiểm tra `Include` ordering và mọi `Match` block trong cấu hình đang chạy. Chỉ dùng drop-in khi `sshd -T -C` chứng minh candidate thắng precedence trong context thật; không sửa file do OS image, cloud-init hoặc provider quản lý. Luôn kiểm tra effective output sau khi chuẩn bị candidate; không suy ra precedence chỉ từ filename.
 
 ## Preconditions — phải đạt trước khi apply
 
-1. Trong TopCloud Portal, xác minh Web Console/rescue console hoạt động và tài khoản có thể truy cập. Provider firewall vẫn ghi UNKNOWN nếu chưa có bằng chứng.
+1. Trong provider portal, xác minh Web Console/rescue console hoạt động và tài khoản có thể truy cập. Provider firewall/recovery evidence vẫn UNKNOWN nếu chưa được xác minh trực tiếp.
 2. Mở hai SSH sessions độc lập bằng alias/key hiện tại; giữ session thứ nhất làm recovery.
 3. Kiểm tra key được dùng thuộc đúng tài khoản `root`; không có key/credential mới được đưa vào repo.
-4. Rà soát Include, toàn bộ drop-ins, `Match` conditions và effective settings ngay trước thay đổi; nếu file/order khác snapshot này, dừng và cập nhật plan.
+4. Rà soát Include, mọi file được include, từng `Match` block và effective settings ngay trước thay đổi. Nếu source order hoặc context khác lần assessment trước, cập nhật plan. Global directives thường dùng first-obtained value; Match values phải được kiểm tra bằng đúng connection context, không suy ra từ file cuối cùng.
 5. Tạo archive root-only, kiểm tra archive liệt kê đúng cấu hình trước khi sửa:
 
    ```bash
@@ -92,9 +92,11 @@ Chỉ sau explicit approval cho chính sequence bên dưới. Các lệnh này h
 5. Dùng chính SSH connection hiện hành để dựng `-C` context; không ghi địa chỉ vào tài liệu:
 
    ```bash
-   set -- $SSH_CONNECTION
-   client=$1; server=$3; port=$4
-   sshd -T -C "user=root,host=$(hostname),addr=$client,laddr=$server,lport=$port" \
+   read -r client_address _ server_address server_port <<< "$SSH_CONNECTION"
+   usedns=$(sshd -T | awk '$1 == "usedns" {print $2; count++} END {if (count != 1) exit 1}')
+   client_host=$client_address
+   if [[ "$usedns" == yes ]]; then client_host=$(getent hosts "$client_address" | awk 'NF >= 2 {print $2; exit}'); fi
+   sshd -T -C "user=$(id -un),host=$client_host,addr=$client_address,laddr=$server_address,lport=$server_port" \
      | grep -E '^(pubkeyauthentication|passwordauthentication|permitrootlogin|kbdinteractiveauthentication) '
    ```
 
@@ -120,14 +122,22 @@ Rollback phải dùng đúng archive đã verify: xóa riêng candidate `00-devo
 - Rollback timer đã bị hủy sau verification; SSH service active.
 - Cập nhật `docs/progress.md` và evidence đã làm sạch. Không ghi IP, hostname đầy đủ, key fingerprint, archive contents ngoài tên file, hay credentials.
 
-`scripts/validate.sh public-services` yêu cầu file local bị ignore `docs/evidence/public-services.env` với các status đã xác minh (không ghi địa chỉ hoặc raw output):
+`run-remote.ps1 -Phase public-services` thực hiện lại SSH key-only client check và đọc host policy trực tiếp trên VPS trong session hiện hành. `sshd -T -C` dùng client address/hostname, server address và port từ `SSH_CONNECTION`; không dùng hostname của server làm client hostname. OpenSSH phân giải `Include` và `Match`. Output phải có đúng một canonical value cho mỗi directive:
 
 ```text
-SSH_KEY_ONLY=PASS
-SSH_SERVER_AUTH=PASS
-HOST_FIREWALL=PASS
-PROVIDER_FIREWALL=PASS
-CONSOLE_RECOVERY=PASS
+pubkeyauthentication yes
+passwordauthentication no
+permitrootlogin prohibit-password
+kbdinteractiveauthentication no
 ```
 
-`SSH_SERVER_AUTH=PASS` chỉ khi cả bốn effective SSH settings trên đúng connection context; Provider Firewall chỉ PASS sau khi đã xem policy trong portal. Thiếu field/UNKNOWN trả exit 2; field FAIL trả exit 1. File evidence không được commit.
+UFW được truy vấn trực tiếp trên VPS ở mỗi lần chạy. Host state không lấy từ file evidence cũ.
+
+File local bị ignore `docs/evidence/public-services.env` chỉ giữ hai mục không thể kiểm chứng từ host. Mỗi dòng theo schema `KEY=STATUS,SOURCE,OBSERVED_AT_UTC`:
+
+```text
+PROVIDER_FIREWALL=PASS,MANUAL,2026-11-20T08:00:00Z
+CONSOLE_RECOVERY=PASS,MANUAL,2026-11-20T08:00:00Z
+```
+
+`Provider/console evidence` phải được kiểm tra trong portal trong vòng 24 giờ, không duplicate/malformed và `SOURCE=MANUAL`. Thiếu hoặc stale trả exit 2; duplicate, malformed, sai provenance hoặc `FAIL` trả exit 1. SSH key auth, effective SSH policy và firewall state là live checks; không chép chúng vào file evidence. File evidence không được commit.
