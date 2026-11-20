@@ -59,8 +59,9 @@ jobs:
             exit 1
           fi
           printf 'Reachable commits across all local refs: %s\n' "$reachable_count"
+          scan_report="$RUNNER_TEMP/gitleaks-report.json"
           set +e
-          scan_output="$(gitleaks git --redact=100 --exit-code=2 --log-opts='--all --full-history --diff-merges=first-parent' 2>&1)"
+          scan_output="$(gitleaks git --redact=100 --exit-code=2 --report-format=json --report-path="$scan_report" --log-opts='--all --full-history --diff-merges=first-parent' 2>&1)"
           scan_status=$?
           set -e
           scanned_count="$(grep -Eo '[0-9]+ commits scanned' <<< "$scan_output" | tail -n 1 | awk '{print $1}')"
@@ -74,7 +75,32 @@ jobs:
             exit 1
           fi
           if (( scan_status != 0 )); then
-            printf 'FAIL: Gitleaks found a policy violation or could not complete the scan; redacted scanner output was suppressed.\n' >&2
+            if [[ -s "$scan_report" ]]; then
+              python3 - "$scan_report" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as report_file:
+        findings = json.load(report_file)
+except (OSError, json.JSONDecodeError):
+    print("Gitleaks report could not be parsed; finding details suppressed.")
+    raise SystemExit(0)
+
+for finding in findings:
+    print("Gitleaks finding: rule=%s file=%s line=%s commit=%s" % (
+        finding.get("RuleID", "unknown"),
+        finding.get("File", "unknown"),
+        finding.get("StartLine", "unknown"),
+        finding.get("Commit", "unknown"),
+    ))
+if not findings:
+    print("Gitleaks reported non-zero without findings; scanner details suppressed.")
+PY
+            else
+              printf 'Gitleaks report unavailable; finding details suppressed.\n'
+            fi
+            printf 'FAIL: Gitleaks found a policy violation or could not complete the scan; secret-bearing scanner output was suppressed.\n' >&2
             exit "$scan_status"
           fi
 
