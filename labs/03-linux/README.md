@@ -102,12 +102,12 @@ Các lệnh này đọc live state, không thay thế helper output và không t
 
 | Check | Kết quả đã quan sát | Ý nghĩa/giới hạn |
 |---|---|---|
-| `MemAvailable`, 1-minute load | Final run: `3,495,916 kB`; load `0.00/0.00/0.00`; gate PASS | Ngưỡng trước workload là 1 GiB và load `< 2`. |
-| CPU `%user/%system/%idle/%iowait/%steal` | `0.0/0.2/99.8/0.0/0.0%` trong một giây | Sample ngắn; không đại diện host/provider lâu dài. `vmstat` sample cho thấy không có blocked task. |
+| `MemAvailable`, 1-minute load | Post-ShellCheck rerun: `3,497,480 kB`; load `0.07/0.02/0.00`; gate PASS | Ngưỡng trước workload là 1 GiB và load `< 2`. |
+| CPU `%user/%system/%idle/%iowait/%steal` | `0.0/0.0/100.0/0.0/0.0%` in the script's one-second sample | Sample ngắn; không đại diện host/provider lâu dài. Other `top`/`vmstat` snapshots varied while running. |
 | Memory, swap, disk/inodes | Total `4,009,132 kB`; no swap; root fs `6%`, inode `3%` | `MemFree` khoảng 2.1 GiB; page cache/buffers khoảng 1.5 GiB; dùng `MemAvailable` để xét headroom. |
 | Disk I/O | Sample khoảng một giây không có completed read/write | IOPS/throughput bằng 0 cho sample; latency `NOT TESTED`, không kết luận storage nhanh/chậm. |
-| PSI | Final run: CPU/memory/IO avg10/60/300 `0`; `full` `0` | Cumulative totals không đồng nghĩa áp lực hiện tại; snapshot không loại trừ burst. |
-| cgroup v2 CPU/memory/tasks | `cpu.max=20000 100000`; `memory.current=29396992`, `memory.max=100663296`; `pids.current=1`, `pids.max=4`; `nr_throttled=25`; peak RSS `35072 KiB` | CPU quota 0.2 CPU được kernel throttle; 24 MiB allocation stayed under 96 MiB hard cap. RSS includes resident shared mappings, while cgroup current reports charged pages. Root cgroup không expose `cpu.max`/`memory.max`; transient service cgroup có. |
+| PSI | Post-ShellCheck rerun: CPU/memory/IO avg10/60/300 `0`; `full` `0` | Cumulative totals không đồng nghĩa áp lực hiện tại; snapshot không loại trừ burst. |
+| cgroup v2 CPU/memory/tasks | `cpu.max=20000 100000`; `memory.current=29577216`, `memory.max=100663296`; `pids.current=1`, `pids.max=4`; `nr_throttled=23`; process RSS `35256 KiB` | CPU quota 0.2 CPU was exercised and throttled; 24 MiB allocation stayed under 96 MiB hard cap. RSS includes resident shared mappings, while cgroup current reports charged pages. Root cgroup không expose `cpu.max`/`memory.max`; transient service cgroup có. |
 | Unit/process/temp upload cleanup | Unit inactive, process absent, transient cgroup removed, remote upload temp removed | Cleanup PASS; không còn workload hoặc cấu hình dai dẳng. |
 | OOM log history | `NOT TESTED`; kernel journal filter returned exit 1 | Không có bằng chứng đủ để kết luận không có OOM trong journal retention; không tạo OOM thử nghiệm. |
 
