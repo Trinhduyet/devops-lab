@@ -1,30 +1,33 @@
-# Tiến độ
+# Tiến độ — nguồn trạng thái chuẩn
 
-Ngày bắt đầu theo client context: 2026-11-20.
+Cập nhật lần cuối: 2026-11-20. Các số liệu là snapshot theo lần quan sát; không đại diện production readiness.
 
-| Phase | Trạng thái | Bằng chứng |
+| Phase/gate | Trạng thái | Bằng chứng thực tế |
 |---|---|---|
-| Repository setup | Hoàn tất bước đầu | Tài liệu, `.gitignore`, Lab 01 và ba script read-only trong workspace |
-| Phase 0 — VPS assessment | Hardware baseline PASS; security gates đang tách theo phạm vi | SSH trực tiếp: Ubuntu 24.04.5, KVM, 4 vCPU, 3.8 GiB RAM, disk 40 GB, cgroup v2 |
-| Phase 0.1 — Security baseline | SSH connectivity/authentication PASS; host firewall NOT READY; provider firewall UNKNOWN | ED25519 accepted trong BatchMode; server vẫn cho phép password/root login; UFW inactive/0 rules; IPv4/IPv6 INPUT ACCEPT |
-| Phase 1 — Linux Fundamentals | Lab 01 read-only baseline và temporary permission exercise PASS; ACL NOT TESTED | 143 process rows/178 thread rows tại thời điểm đo; umask 077 tạo mode 600, chmod 640 tạo mode 640; ACL tools absent; không đổi package/config |
-| Phase 1 — Networking/Docker/containerd | Network inventory read-only done; deploy DEFERRED | IPv4 default route qua interface IPv4, IPv6 default route qua interface IPv6; Docker/containerd/kubectl absent; provider ingress và WARP source stability UNKNOWN |
-| Phase 2 — kubeadm | Chưa bắt đầu | Chờ Phase 1 và resource gate |
-| Phase 3 — RKE2 | Chưa bắt đầu | Cần kubeadm backup/cleanup và resource gate |
-| Phase 4 — Rancher | Deferred decision | Cần compatibility/resource assessment; không chạy chung với RKE2 khi thiếu tài nguyên |
-| Phase 5 — consolidation | Chưa bắt đầu | Sau các phase khả thi |
+| Repository harness | PASS local checks; CI chưa chạy | `scripts/validate.sh repo` kiểm tra docs, Bash syntax, executable bits và tracked-path guard; local ShellCheck NOT TESTED vì chưa cài. Workflow GitHub-hosted đã được thêm; chờ run thực tế sau publish. |
+| Phase 0 — infrastructure inventory | PASS (inventory collection) | Chạy lại qua Windows OpenSSH helper; `preflight.sh` và `security-baseline.sh` trả `INVENTORY STATUS=COLLECTED`; từng script `bash -n` PASS. Inventory không phải security/deployment gate. |
+| Phase 0 — optional kernel evidence | NOT TESTED | `net.bridge.bridge-nf-call-iptables` không được kernel expose (`/proc/sys/net/bridge/...` vắng mặt); diagnostic được ghi rõ, không coi output rỗng là PASS. Kernel module/network config không đổi. |
+| Phase 0.1 — SSH authentication | WARNING; hardening deferred | `sshd -t` PASS; live `sshd -T -C` vẫn `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no`. Config `Include`/drop-ins đã được xem; hardening runbook riêng, chưa apply. |
+| Phase 0.1 — firewall/public ingress | NOT READY / UNKNOWN | `ufw` inactive, IPv4/IPv6 INPUT ACCEPT theo snapshot; Provider firewall và rescue console chưa được xác minh trong portal. Không đổi firewall/network. |
+| Lab 01 — Linux Fundamentals | PASS; ACL NOT TESTED | Re-run bằng validator qua VPS: `umask 077` → mode `600`; `chmod 640` → mode `640`; file/directory tạm cleanup PASS. ACL tools absent; không cài package. |
+| Lab 02 — systemd/services/processes/signals/journalctl | PASS | systemd 255, manager running, 0 failed units, journal 8.0 MB, process count snapshot 143. Transient unit active/inactive; marker journal observed; `MemoryCurrent=266240` bytes, `CPUUsageNSec=9058000`; SIGTERM `wait=143`; service/process/helper cleanup PASS. Chi tiết tại [Lab 02](../labs/02-linux/README.md). |
+| Lab 03 — CPU/RAM/I/O/cgroups | NEXT | Chưa chạy; bắt đầu read-only rồi chọn workload bounded theo budget. |
+| Lab 04–06 — networking/filesystem/Bash | DEFERRED | Theo thứ tự Linux roadmap; không đổi firewall hoặc mount tùy tiện. |
+| Docker/containerd | DEFERRED | Chờ Phase 1 và host/provider ingress/resource gates; không package install. |
+| kubeadm | NOT STARTED | Main Kubernetes lab là single-node; chờ Phase 1, compatibility, resource và backup gate. |
+| RKE2 | DEFERRED DECISION | Chỉ sau kubeadm backup/cleanup và kiểm tra minimum requirements hiện hành. |
+| Rancher/large stacks | DEFERRED | Chuyển sang máy local nếu VPS 4 GB không đủ headroom; không mua thêm dịch vụ. |
 
-## Ranh giới xác minh
+## Quy tắc đọc evidence
 
-- **Đã làm trong workspace:** tạo repository, tài liệu và script preflight chỉ đọc; kiểm tra cú pháp script.
-- **SSH key:** Client debug xác nhận ED25519 key offer, server accept và `publickey` authentication thành công trong BatchMode; không dùng password.
-- **SSH server policy:** `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no`; không thay đổi config.
-- **Firewall:** `ufw status inactive`, UFW user rules = 0, IPv4/IPv6 INPUT policy ACCEPT; `/etc/default/ufw`: `IPV6=yes`, input DROP, output ACCEPT, forward DROP. `systemd.ufw_unit=active` không đồng nghĩa firewall đang bật.
-- **Network/listeners:** SSH session peer IPv6; IPv4 default route qua interface riêng, IPv6 default route qua interface IPv6 global. Listener: 22/TCP wildcard; 53/TCP và 53/UDP loopback. Addresses không lưu. Provider firewall UNKNOWN.
-- **Linux Fundamentals:** kernel 6.8.0-142-generic, x86_64/64-bit, 4 vCPU; root ext4 ~38 GB/~36 GB free; root UID/GID 0; `/tmp` mode 1777; Bash 5.2.21, apt 2.8.4, dpkg architecture amd64.
-- **Permissions exercise:** umask 077 tạo file mode 600; chmod 640 cho mode 640; file tạm được dọn khi script kết thúc. ACL chưa test vì `getfacl`/`setfacl` không có; không cài package.
-- **Chưa chứng minh:** provider ingress firewall, WARP egress stability, external inbound IPv6, NAT/egress, module runtime behavior, disk I/O hoặc khả năng chịu tải Kubernetes.
+- Local `bash -n`, documentation gate hoặc GitHub CI không thay thế runtime proof trên VPS.
+- VPS runtime PASS chỉ áp dụng cho lệnh/lab đã quan sát ở thời điểm trên; không đồng nghĩa provider ingress, public reachability hay production readiness.
+- SSH key-only ở client đã PASS; server vẫn cho phép password/root login. Không thực hiện SSH/firewall/network changes trong lần cập nhật này.
+- `docs/infrastructure.md` giữ snapshot hạ tầng đã làm sạch; `docs/resource-budget.md` là nguồn budget/gates; README chỉ dẫn tới các nguồn chuẩn này.
 
-## Bước kế tiếp
+## Lỗi gặp và xử lý
 
-Kiểm tra Provider Firewall trong TopCloud Portal; xử lý password-based root SSH theo kế hoạch riêng có backup/recovery; sau đó review UFW plan và xác nhận rõ ràng trước khi enable. Chưa cài Docker hoặc mở dịch vụ public.
+- Remote bash từ chối một dòng CRLF sau khi local Git Bash chấp nhận syntax. Đã chuẩn hóa LF và yêu cầu helper kiểm tra `bash -n` trên đúng Linux target trước khi chạy.
+- `scp` không giữ executable bit trên remote upload. Helper đặt mode 0700 trong unique temp directory; không thay đổi mode trên host.
+- Lần signal đầu gửi trước khi child hoàn thành `exec`, và transient unit tự unload sau stop. Lab giờ chờ xác minh `/proc/<pid>/comm`; cleanup kiểm tra LoadState và lần chạy lại đã PASS.
+- Phase 0 ban đầu đánh lỗi khi bridge netfilter sysctl không tồn tại. Preflight nay phân loại đúng là optional `NOT TESTED`, vẫn in diagnostic/exit status; lần rerun inventory PASS.

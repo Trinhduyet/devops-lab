@@ -1,54 +1,55 @@
 # DevOps Infrastructure Lab
 
-Repository học và thực hành DevOps trên VPS Linux, theo từng phase có kiểm tra điều kiện đầu vào. Nội dung giải thích bằng tiếng Việt, giữ nguyên technical terms tiếng Anh.
+Lab học DevOps có thể tái triển khai: hiểu Linux bằng CLI, thực hành có giới hạn, xác minh output thật, troubleshoot và ghi lại cleanup/rollback. Tài liệu viết bằng tiếng Việt, giữ nguyên technical terms và command tiếng Anh.
 
-## Trạng thái hiện tại
+## Kiến trúc và tiến độ
 
-- Phase 0.1 xác nhận SSH non-interactive bằng ED25519 key. `sshd` vẫn cho phép root login và password authentication; chưa đổi cấu hình.
-- Host firewall chưa sẵn sàng cho dịch vụ public: `ufw status` inactive, IPv4/IPv6 INPUT policy ACCEPT. Provider firewall là UNKNOWN.
-- Lab 01 Linux Fundamentals đã chạy qua SSH, gồm inventory read-only và phép thử permission trong thư mục tạm tự dọn.
-- ACL exercise chưa chạy vì VPS không có `getfacl`/`setfacl`; không cài package trong phase này.
-- Chưa cài hoặc đổi cấu hình dịch vụ, SSH, firewall hoặc network trên VPS.
-- Chưa cài Docker, Kubernetes, RKE2 hay Rancher trên VPS.
-- Chưa lưu hostname, địa chỉ IP, password, token, SSH key hay kubeconfig trong repository.
+- **Môi trường:** máy cá nhân Windows dùng OpenSSH; VPS Linux một node là môi trường thực hành, không phải production.
+- **Luồng công nghệ:** Linux → Docker → containerd → kubeadm single-node → RKE2 có điều kiện → Rancher nếu resource gate cho phép.
+- **Phạm vi hiện tại:** Linux Labs 01–06; public-service security gate riêng để không chặn Linux exercises an toàn.
+- **Tiến độ chuẩn:** [docs/progress.md](docs/progress.md) là single source of truth. Hạ tầng đã quan sát ở [docs/infrastructure.md](docs/infrastructure.md); budget và gate ở [docs/resource-budget.md](docs/resource-budget.md); kiến trúc ở [docs/architecture.md](docs/architecture.md).
 
-## Bắt đầu
+## Quick start trên Windows
 
-1. Đọc [AGENTS.md](AGENTS.md) và [docs/progress.md](docs/progress.md).
-2. Đọc [Lab 01 — Linux Fundamentals](labs/01-linux/README.md).
-3. Đọc [runbook Phase 0](docs/runbooks/phase-0-preflight.md); kiểm tra Provider Firewall trong TopCloud Portal và chuẩn bị SSH recovery trước mọi thay đổi firewall.
-4. Chỉ cài Docker sau khi hiểu UFW/iptables path và xác nhận console/rollback.
-5. Xem [resource budget](docs/resource-budget.md) trước khi chọn lab Kubernetes.
+Yêu cầu: OpenSSH CLI trên máy cá nhân và alias `devops-lab` cấu hình sẵn bằng SSH key. Không đặt password/private key trong repo.
 
-## Quy tắc
-
-- Mỗi phase: Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document.
-- Dùng read-only diagnostics trước. Không thay đổi SSH, firewall, disk, OS, network hoặc cluster khi chưa có backup, rollback plan và xác nhận rõ ràng.
-- Không dùng Swap để bù cho thiếu RAM của Kubernetes.
-- VPS một node là môi trường lab, không phải production HA.
-- Không lưu credentials hoặc host-specific secrets trong Git.
-
-## Cấu trúc
-
-```text
-.
-├── AGENTS.md
-├── .gitattributes
-├── .agents/skills/vps-linux-lab/SKILL.md
-├── docs/
-│   ├── architecture.md
-│   ├── infrastructure.md
-│   ├── progress.md
-│   ├── resource-budget.md
-│   ├── roadmap.md
-│   ├── troubleshooting.md
-│   └── runbooks/phase-0-preflight.md
-├── labs/01-linux/README.md
-├── scripts/
-│   ├── preflight.sh
-│   ├── security-baseline.sh
-│   └── lab01-readonly.sh
-└── applications/dotnet-sample-api/README.md
+```powershell
+ssh devops-lab
+.\scripts\run-remote.ps1 -Phase phase-0
+.\scripts\run-remote.ps1 -Phase lab-01
+.\scripts\run-remote.ps1 -Phase lab-02
 ```
 
-Các thư mục lab còn lại sẽ được bổ sung cùng nội dung thực hành tương ứng, tránh tạo placeholder không có giá trị.
+`run-remote.ps1` chỉ upload các Bash scripts cần thiết vào remote `mktemp` directory, chạy `bash -n` riêng từng file, gọi phase validator rồi cleanup đúng temporary directory của lần chạy.
+
+## Current lab và next lab
+
+- **Current:** [Lab 02 — systemd, services, processes, signals và journalctl](labs/02-linux/README.md). Đây là bounded transient service exercise; xem runtime results và `docs/progress.md` trước khi coi là PASS.
+- **Next:** Lab 03 — CPU, RAM, load average, memory pressure, disk I/O và cgroups; chỉ dùng quan sát và workload có giới hạn.
+- Lab 04–06 lần lượt học networking, filesystem/storage concepts và Bash automation; không tạo placeholder skills hoặc workload khi chưa bắt đầu phần tương ứng.
+
+## Validation commands
+
+```bash
+# Trong Bash trên Linux/CI: static repository gates
+./scripts/validate.sh repo
+
+# Trên VPS qua PowerShell; phase-0 và lab checks độc lập
+.\scripts\run-remote.ps1 -Phase phase-0
+.\scripts\run-remote.ps1 -Phase lab-02
+
+# Public-service gate riêng; cần evidence đã làm sạch
+./scripts/validate.sh public-services
+```
+
+Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner.
+
+## Resource constraints
+
+VPS package 4 vCPU/4 GB RAM/40 GB SSD; snapshot quan sát được khoảng 3.8 GiB RAM, không swap. Ưu tiên Linux labs nhẹ. Không dùng swap để giả lập RAM Kubernetes, không tạo OOM/disk exhaustion. kubeadm chỉ cân nhắc single-node tối giản sau resource/preflight gates; RKE2 cần kiểm tra mức tối thiểu hiện hành; Rancher, monitoring stack đầy đủ, Harbor, GitLab Server, Longhorn, HA và multi-node được chuyển sang máy local nếu VPS thiếu headroom. Xem [resource budget](docs/resource-budget.md).
+
+## Quy trình và an toàn
+
+Đọc [AGENTS.md](AGENTS.md) và skill [vps-linux-lab](.agents/skills/vps-linux-lab/SKILL.md) trước khi làm. Quy trình là Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document; risk levels phân biệt diagnostics, lab tạm, system config và thao tác có thể làm mất SSH/dữ liệu. SSH hardening đã chuẩn bị riêng nhưng **chưa áp dụng**: [runbook SSH hardening](docs/runbooks/ssh-hardening.md). Provider firewall vẫn UNKNOWN đến khi được xác minh trong portal.
+
+Không commit credentials, kubeconfig, private SSH keys, raw inventory/logs, host addresses/identifiers hoặc backups. Xem [.gitignore](.gitignore) và workflow [validate.yml](.github/workflows/validate.yml).

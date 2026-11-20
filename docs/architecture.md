@@ -1,25 +1,33 @@
 # Kiến trúc lab
 
-## Hiện trạng
+## Luồng học và deployment
 
 ```mermaid
 flowchart LR
-  Dev[Máy học viên] -->|SSH ED25519, đã xác minh| VPS[VPS Linux]
-  VPS --> Host[Linux: systemd, kernel, filesystem, network]
-  Host -. Phase 1 sau khi đạt preflight .-> Docker[Docker/containerd labs]
-  Docker -. Phase 2 sau khi gate đạt .-> K8s[kubeadm single-node]
-  K8s -. Backup, clean transition .-> RKE2[RKE2 single-node]
-  RKE2 -. Conditional, đủ tài nguyên .-> Rancher[Rancher lab]
+  PC[Windows local: OpenSSH + PowerShell] -->|key-only SSH; scripts trong mktemp| VPS[VPS Linux single node]
+  VPS --> LNX[Linux Labs 01–06]
+  LNX -->|network/security/resource gates| Docker[Docker]
+  Docker --> Containerd[containerd / OCI / CRI]
+  Containerd --> Kubeadm[kubeadm single-node main lab]
+  Kubeadm -->|backup, cleanup, re-assess| RKE2[RKE2 conditional]
+  RKE2 -->|resource gate; local if insufficient| Rancher[Rancher deferred decision]
 ```
 
-## Thiết kế theo phase
+## Runtime boundaries
 
-1. VPS một node dùng để học Linux, network và container runtime; không giả định địa chỉ IPv4 public. Kiểm tra IPv6, private IPv4, NAT, DNS và firewall trước khi mở dịch vụ.
-2. Docker/containerd được học trước Kubernetes. Chạy ASP.NET Core API như workload minh họa.
-3. kubeadm và RKE2 dùng các phase riêng. Sao lưu dữ liệu, ghi lại trạng thái, sau đó cleanup theo runbook trước khi chuyển runtime/cluster.
-4. Rancher chỉ triển khai sau đánh giá tài nguyên và backup; nếu VPS không đáp ứng thì hoãn tới môi trường local tháng 2.
-5. Multi-node, HA, GPU, Longhorn, Harbor, GitLab server và quan sát đầy đủ cần nhiều node/tài nguyên; hiện để Deferred Labs.
+1. VPS một node dùng trước cho Linux, network và container runtime exercises; không giả định có public IPv4. Kiểm tra IPv6, private IPv4, NAT, DNS và firewall trước khi mở public service.
+2. Windows OpenSSH key-only proof không đồng nghĩa server password authentication đã tắt. SSH hardening plan tách riêng và chưa áp dụng.
+3. Linux safe labs không phụ thuộc public-service gate; các bài này không mở port hay sửa firewall/SSH/network.
+4. Docker API sample đầu tiên bind localhost và được truy cập qua SSH tunnel. Review host/provider ingress và Docker firewall behavior trước khi publish port.
+5. kubeadm và RKE2 có phase riêng. Trước khi chuyển runtime: snapshot/backup, kiểm chứng backup, cleanup và resource gate. Rancher/monitoring stack chạy local nếu VPS không đủ budget.
+6. Kubernetes API, etcd, kubelet, NodePort và RKE2 registration ports không mở Internet mặc định.
 
-## Network boundary
+## Repository responsibilities
 
-SSH là đường quản trị. SSH key authentication đã được xác minh; cấu hình `sshd` hiện vẫn bật password authentication và root login. Client báo dùng Cloudflare WARP, còn phiên server ghi nhận peer IPv6; source egress chưa xác minh độ ổn định. Provider firewall chưa xác minh và UFW đang inactive. Kubernetes API, etcd, kubelet và service ports không được mở công khai mặc định. Không thay đổi firewall từ xa nếu chưa có console/out-of-band rollback, rollback timer và SSH session thứ hai.
+- `README.md`: entry point, quick start và liên kết.
+- `docs/progress.md`: single source of truth cho phase status/evidence.
+- `docs/infrastructure.md`: sanitized facts đã quan sát qua SSH, tách unknowns.
+- `docs/resource-budget.md`: resource thresholds/gates và host limits.
+- `scripts/preflight.sh` / `scripts/security-baseline.sh`: inventory, không tự khẳng định phase PASS.
+- `scripts/validate.sh`: required/optional gates theo repository hoặc phase.
+- `scripts/run-remote.ps1`: upload scripts vào temp directory qua SSH, kiểm tra cú pháp và cleanup.

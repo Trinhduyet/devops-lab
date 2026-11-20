@@ -14,6 +14,15 @@ Xây dựng lab tái tạo được, ưu tiên hiểu nguyên lý, quan sát b�
 6. **Troubleshoot:** nêu symptom, root cause, investigation, resolution, verification và prevention.
 7. **Document:** cập nhật runbook/progress trước khi sang phase sau.
 
+## Execution risk levels
+
+- **LEVEL 0 — read-only:** inspect, query, validate syntax và thu thập trạng thái. Được phép chạy trong phạm vi đã nêu; không hỏi xác nhận lặp lại cho từng lệnh.
+- **LEVEL 1 — temporary/reversible lab:** tạo process, transient service, file trong thư mục `mktemp` hoặc workload giới hạn; được phép khi nằm trong lab đã xác nhận và có cleanup.
+- **LEVEL 2 — package/system configuration:** cài package hoặc sửa cấu hình dịch vụ. Trước khi làm phải xác định đúng phạm vi, ảnh hưởng, preconditions, tài nguyên và rollback; không tự mở rộng quyền đã cấp.
+- **LEVEL 3 — high impact:** SSH, firewall, network, disk/partition/mount, cluster reset, restore hoặc thao tác phá hủy. Cần explicit approval cho thay đổi cụ thể, backup đã kiểm tra và rollback khả thi. Không dùng sự cho phép ở phase khác để suy ra quyền này.
+
+Không tự nâng risk level hoặc mở rộng phạm vi. Nếu precondition thiếu, tiếp tục phần độc lập an toàn và ghi rõ gate bị chặn.
+
 ## An toàn
 
 - Không đưa password, token, SSH private key, kubeconfig, Terraform state hay dữ liệu nhận dạng máy chủ vào Git.

@@ -46,11 +46,10 @@ flowchart TB
 Từ PowerShell trong repository:
 
 ```powershell
-scp .\scripts\lab01-readonly.sh devops-lab:/tmp/lab01-readonly.sh
-ssh -o BatchMode=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no devops-lab "bash /tmp/lab01-readonly.sh --permissions-demo"
+.\scripts\run-remote.ps1 -Phase lab-01
 ```
 
-Bỏ `--permissions-demo` nếu chỉ muốn inventory read-only. Script chỉ in một số environment key được cho phép, không in IP/hostname, không đọc nội dung `/etc/shadow`, không cài package.
+Helper upload scripts vào một remote `mktemp` directory, kiểm tra từng file bằng lệnh `bash -n` riêng, chạy `validate.sh lab-01` và cleanup directory. Lab validator chạy permission demo. Script chỉ in một số environment key được cho phép, không in IP/hostname, không đọc nội dung `/etc/shadow`, không cài package. Để chỉ lấy inventory, chạy `scripts/lab01-readonly.sh` không có `--permissions-demo` trên Linux checkout.
 
 Các lệnh tương đương để tự khám phá:
 

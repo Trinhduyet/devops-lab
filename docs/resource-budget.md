@@ -47,3 +47,9 @@ Thứ tự thực hành giữ riêng kubeadm và RKE2; trước khi chuyển run
 - UFW không có user rules đã lưu. Không bật UFW cho tới khi rule bảo đảm SSH qua đường IPv6 hiện tại, provider console/out-of-band access và SSH session thứ hai đã được kiểm chứng; rollback dự kiến là `ufw disable`. Đây là thay đổi có thể ngắt kết nối và cần xác nhận rõ ràng.
 - `ip_forward=0`, bridge sysctl thiếu và overlay/br_netfilter chưa thấy được nạp. Trước khi cài Docker, xác nhận `modinfo overlay`/`modinfo br_netfilter`, rồi chọn thay đổi đúng cho Docker; kubeadm/RKE2 sẽ có preflight riêng.
 - Docker Engine tự quản lý firewall cho bridge network; tài liệu Docker cảnh báo port publish có thể bypass UFW. Không dùng UFW làm lớp kiểm soát duy nhất cho public container ports; lab đầu bind `127.0.0.1`, public exposure cần thiết kế riêng theo Docker `DOCKER-USER`/backend tương ứng.
+
+## Budget cho Linux labs
+
+- Lab 02 chỉ chạy một transient `sleep` service tối đa 40 giây và một child process bị kết thúc ngay bằng SIGTERM; không stress CPU/RAM/disk. Journal marker nhỏ là evidence có chủ đích.
+- Lab 03 bắt đầu bằng metrics read-only (`uptime`, `free`, `/proc`, cgroup counters, `df`, `vmstat`). Nếu có workload minh họa, nó phải giới hạn duration, process count và memory rõ ràng; không gây host-wide OOM hoặc lấp đầy disk.
+- Host firewall/provider SSH security là gate riêng cho public services. Nó không chặn Phase 1 Linux exercises mà không mở port hay sửa host configuration.

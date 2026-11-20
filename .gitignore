@@ -4,12 +4,40 @@
 !.env.example
 *.pem
 *.key
+*.ppk
+*.p12
+*.pfx
 id_rsa*
 id_ed25519*
+id_ecdsa*
+id_dsa*
+ssh_host_*_key
+**/ssh_host_*_key
+.ssh/
+**/.ssh/
 *.kubeconfig
 kubeconfig
+**/.kube/
+**/.kube/**
+admin.conf
+rke2.yaml
 secrets/
 credentials/
+
+# Local inventory and raw machine evidence
+inventory.local
+inventory.local.*
+**/inventory.local
+**/inventory.local.*
+raw-inventory*
+**/raw-inventory*
+preflight-raw*
+security-baseline-raw*
+docs/evidence/
+*.log
+*.log.*
+*.out
+*.trace
 
 # Terraform
 **/.terraform/
@@ -19,13 +47,15 @@ credentials/
 *.tfvars.json
 crash.log
 
-# Local evidence and backups
-docs/evidence/
+# Local backups and generated state
 backups/
+backup/
 *.backup
+*.bak
 *.dump
 *.sql.gz
 *.tar.gz
+*.tgz
 
 # Common generated files
 .DS_Store

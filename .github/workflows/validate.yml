@@ -1,0 +1,44 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  repository-checks:
+    name: Repository validation
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      # actions/checkout v7.0.1 pinned to its verified full commit SHA.
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Required documentation, Bash syntax and tracked-path gates
+        run: ./scripts/validate.sh repo
+
+      - name: Install pinned ShellCheck package
+        run: |
+          sudo apt-get update
+          sudo apt-get install --allow-downgrades --yes --no-install-recommends shellcheck=0.9.0-1
+          shellcheck --version | grep -F 'version: 0.9.0'
+
+      - name: ShellCheck
+        run: shellcheck scripts/*.sh
+
+      # gitleaks-action v3.0.0 pinned to its verified full commit SHA.
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+          GITLEAKS_ENABLE_SUMMARY: "true"

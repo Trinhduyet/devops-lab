@@ -12,7 +12,7 @@ Nguồn chính là preflight trực tiếp qua Windows OpenSSH alias `devops-lab
 | Disk | Disk 40 GB; root ext4 khoảng 37.7 GiB, 35.4 GiB available lúc đo; `ROTA=0` | Tạm đủ cho lab nhỏ; thuộc tính thiết bị ảo không chứng minh media vật lý |
 | Virtualization/cgroups | KVM, cgroup v2; controllers `cpu`, `memory`, `io`, `pids` có mặt | Thuận lợi cho runtime; cần kiểm tra overlay/bridge modules trước Docker |
 | Network | IPv6 global trên một interface, IPv4 trên interface riêng; IPv4 và IPv6 đều có default route qua interface tương ứng; không thấy overlay interface | Không thấy public IPv4 trực tiếp; NAT/egress chưa kiểm tra. Địa chỉ/gateway không lưu trong repo |
-| SSH/auth | Non-interactive ED25519 key được offer/accept; session peer IPv6, port 22. `sshd -T`: `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no` | Key auth PASS; password authentication/root login vẫn được phép theo server config. Không đổi SSH; source address không lưu |
+| SSH/auth | Non-interactive ED25519 key được offer/accept; session peer IPv6, port 22. `sshd -t` PASS; `sshd -T -C` effective values: `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no` | Key auth PASS; password authentication/root login vẫn được phép theo server config. Chưa đổi SSH; source address không lưu |
 | WARP/Tailscale | `warp-svc` và `tailscaled` inactive; `warp-cli` không có trên VPS | Không có WARP/Tailscale interface ở snapshot hiện tại; không có thay đổi WARP nào được thực hiện |
 | Firewall | `ufw status` **inactive**, 0 saved/numbered user rules; IPv4/IPv6 `INPUT` policy `ACCEPT`. `/etc/default/ufw`: `IPV6=yes`, input `DROP`, output `ACCEPT`, forward `DROP`; nftables tables/chains hiện diện | `systemd.ufw_unit=active` không có nghĩa firewall bật. Nếu enable trước khi thêm SSH allow rule, SSH có thể bị chặn; provider firewall chưa xác minh |
 | DNS/listeners | Resolver hoạt động trong snapshot trước; 22/TCP bind wildcard, 53/TCP và 53/UDP bind loopback | Addresses cụ thể không lưu. Public DNS authoritative chưa xác minh |
@@ -22,6 +22,8 @@ Nguồn chính là preflight trực tiếp qua Windows OpenSSH alias `devops-lab
 | Provider/package/hạn sử dụng | Chưa rõ | Xác minh từ provider panel |
 
 ## Network và bảo mật
+
+- SSH config inspection đã xác nhận `/etc/ssh/sshd_config` include `sshd_config.d/*.conf`; các drop-ins có auth directive gồm `10-topcloud-sshd.conf`, `50-cloud-init.conf` và `60-cloudimg-settings.conf`. Effective `PasswordAuthentication` vẫn `yes`; chi tiết và candidate hardening nằm trong [SSH hardening runbook](runbooks/ssh-hardening.md). Không thay đổi SSH.
 
 - Read-only assessment và Linux Fundamentals được chạy trực tiếp bằng Windows OpenSSH từ runtime hiện tại. Mọi số liệu là snapshot theo thời điểm, không phải giám sát liên tục.
 - Chưa đo public IPv4 egress/NAT, inbound IPv6 từ mạng ngoài, DNS authoritative, disk I/O hoặc firewall ở provider.

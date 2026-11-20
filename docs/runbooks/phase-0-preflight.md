@@ -20,12 +20,24 @@ Không lưu toàn bộ `ssh -vv` output vì có thể chứa username, địa ch
 
 ## Chạy các inventory scripts
 
+Từ PowerShell tại repository root:
+
 ```powershell
-scp .\scripts\preflight.sh .\scripts\security-baseline.sh devops-lab:/tmp/
-ssh -o BatchMode=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no devops-lab "bash -n /tmp/preflight.sh /tmp/security-baseline.sh && bash /tmp/preflight.sh && bash /tmp/security-baseline.sh"
+.\scripts\run-remote.ps1 -Phase phase-0
 ```
 
-Script `security-baseline.sh` tóm tắt SSH authentication settings, family/scope của interface, default routes, UFW status/default config, iptables/ip6tables policy và actions, nft table/chain names, listening port/bind class, cùng relevant systemd unit states. Nó cố ý bỏ addresses và firewall match conditions.
+Helper tạo remote `mktemp -d`, upload đúng `preflight.sh`, `security-baseline.sh` và `validate.sh`, chạy `bash -n` riêng cho từng script, chạy validator rồi xóa các file `.sh` trong đúng temporary directory. Không còn dùng file `/tmp` cố định. Exit code inventory không phải security gate: `preflight.sh`/`security-baseline.sh` in rõ `INVENTORY STATUS`; `validate.sh` phân biệt required failure (`1`) với thiếu required evidence (`2`).
+
+Chạy thủ công trong Linux checkout cũng được:
+
+```bash
+bash -n scripts/preflight.sh
+bash -n scripts/security-baseline.sh
+./scripts/preflight.sh
+./scripts/security-baseline.sh
+```
+
+Script `security-baseline.sh` tóm tắt effective SSH authentication settings và nguồn config/include, family/scope của interface, default routes, UFW status/default config, iptables/ip6tables policy và actions, nft table/chain names, listening port/bind class, cùng relevant systemd unit states. Nó cố ý bỏ addresses và firewall match conditions. Nếu probe lỗi/empty output, script đánh dấu `UNKNOWN` và trả lỗi thay vì coi output rỗng là kết quả an toàn.
 
 `systemd.ufw_unit=active` chỉ mô tả unit state. Dùng `ufw status` để xác định firewall runtime. `ufw show raw` đầy đủ có thể lộ IP/rules; chỉ chạy cục bộ để điều tra và redact trước khi chia sẻ.
 
