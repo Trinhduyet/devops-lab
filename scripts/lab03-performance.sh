@@ -216,7 +216,7 @@ if [[ "$UNIT_STARTED" == 1 ]]; then
       if [[ "$stopped_state" == inactive || "$stopped_state" == failed ]]; then pass "transient service reached $stopped_state after stop."; else fail "transient service state after stop was ${stopped_state:-empty}."; fi
     else status=$?; fail "could not verify transient service stop (exit=$status)."; fi
     if [[ -n "$CONTROL_GROUP" ]]; then
-      for attempt in {1..20}; do [[ ! -e "/sys/fs/cgroup$CONTROL_GROUP" ]] && break; sleep 0.1; done
+      for ((attempt = 1; attempt <= 20; attempt++)); do [[ ! -e "/sys/fs/cgroup$CONTROL_GROUP" ]] && break; sleep 0.1; done
       if [[ ! -e "/sys/fs/cgroup$CONTROL_GROUP" ]]; then pass 'transient cgroup directory was removed after service stop.'; else fail 'transient cgroup directory remained after service stop.'; fi
     fi
   else

@@ -58,7 +58,7 @@ else
   fail 'repeated atomic write changed content hash or file mode.'
 fi
 
-message='argument with spaces * $HOME'
+message="argument with spaces * \$HOME"
 sample="$DEMO_DIR/data file.txt"
 printf '%s\n' "$message" > "$sample"
 if IFS= read -r observed < "$sample" && [[ "$observed" == "$message" ]]; then pass 'quoted argument preserved spaces and literal shell metacharacters without eval.'; else fail 'quoted argument did not round-trip exactly.'; fi

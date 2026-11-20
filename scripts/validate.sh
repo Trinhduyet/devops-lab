@@ -40,7 +40,7 @@ path_is_forbidden() {
     secrets/*|*/secrets/*|credentials/*|*/credentials/*) return 0 ;;
     inventory.local*|*/inventory.local*|raw-inventory*|*/raw-inventory*|preflight-raw*|*/preflight-raw*|security-baseline-raw*|*/security-baseline-raw*) return 0 ;;
     backups/*|backup/*|*/backups/*|*/backup/*|docs/evidence/*|*/docs/evidence/*|.terraform/*|*/.terraform/*) return 0 ;;
-    *.log|*.log.*|*.out|*.trace|*.backup|*.backup.*|*.bak|*.bak.*|*.dump|*.sql.gz|*.tar.gz|*.tgz|*.tfstate|*.tfstate.*|*.tfvars|*.tfvars.json|crash.log) return 0 ;;
+    *.log|*.log.*|*.out|*.trace|*.backup|*.backup.*|*.bak|*.bak.*|*.dump|*.sql.gz|*.tar.gz|*.tgz|*.tfstate|*.tfstate.*|*.tfvars|*.tfvars.json) return 0 ;;
     bin/*|*/bin/*|obj/*|*/obj/*|.DS_Store|*/.DS_Store|Thumbs.db|*/Thumbs.db) return 0 ;;
   esac
   return 1

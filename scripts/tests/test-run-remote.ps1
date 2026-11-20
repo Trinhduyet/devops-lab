@@ -73,4 +73,5 @@ try {
     } else {
         throw 'Refused to remove an unexpected mock test directory.'
     }
+    $global:LASTEXITCODE = 0
 }
