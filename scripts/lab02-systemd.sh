@@ -173,7 +173,9 @@ section 'Process signals and wait status'
 sleep 30 &
 CHILD_PID=$!
 child_name=''
-for attempt in {1..40}; do
+attempt=0
+while (( attempt < 40 )); do
+  attempt=$((attempt + 1))
   if [[ -r "/proc/$CHILD_PID/comm" ]]; then IFS= read -r child_name < "/proc/$CHILD_PID/comm"; [[ "$child_name" == sleep ]] && break; fi
   sleep 0.05
 done

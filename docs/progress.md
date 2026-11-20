@@ -4,7 +4,7 @@ Cập nhật lần cuối: 2026-11-20. Các số liệu là snapshot theo lần 
 
 | Phase/gate | Trạng thái | Bằng chứng thực tế |
 |---|---|---|
-| Repository harness | PASS local checks; CI chưa chạy | `scripts/validate.sh repo` kiểm tra docs, Bash syntax, executable bits và tracked-path guard; local ShellCheck NOT TESTED vì chưa cài. Workflow GitHub-hosted đã được thêm; chờ run thực tế sau publish. |
+| Repository harness | Local PASS; GitHub CI đang được sửa sau lần chạy đầu | `scripts/validate.sh repo` PASS tại Windows Git Bash; ShellCheck local NOT TESTED vì chưa cài. Run đầu tiên trên GitHub Actions chạy Bash/docs/path gates PASS nhưng ShellCheck tìm thấy biến retry chưa dùng và pattern `crash.log` trùng `*.log`; đã sửa thêm helper thừa và quoting DNS. Chờ rerun trên commit sửa để kết luận CI. |
 | Phase 0 — infrastructure inventory | PASS (inventory collection) | Chạy lại qua Windows OpenSSH helper; `preflight.sh` và `security-baseline.sh` trả `INVENTORY STATUS=COLLECTED`; từng script `bash -n` PASS. Inventory không phải security/deployment gate. |
 | Phase 0 — optional kernel evidence | NOT TESTED | `net.bridge.bridge-nf-call-iptables` không được kernel expose (`/proc/sys/net/bridge/...` vắng mặt); diagnostic được ghi rõ, không coi output rỗng là PASS. Kernel module/network config không đổi. |
 | Phase 0.1 — SSH authentication | WARNING; hardening deferred | `sshd -t` PASS; live `sshd -T -C` vẫn `pubkeyauthentication yes`, `passwordauthentication yes`, `permitrootlogin yes`, `kbdinteractiveauthentication no`. Config `Include`/drop-ins đã được xem; hardening runbook riêng, chưa apply. |

@@ -17,9 +17,6 @@ deferred() { printf 'DEFERRED: %s\n' "$1"; }
 required_file() {
   if [[ -f "$ROOT/$1" ]]; then pass "required file $1 exists"; else missing "required file $1 is absent"; fi
 }
-required_executable() {
-  if [[ -x "$ROOT/$1" ]]; then pass "executable bit set on $1"; else fail "required executable bit is missing on $1"; fi
-}
 run_gate() {
   local name=$1 status
   shift
@@ -41,7 +38,7 @@ path_is_forbidden() {
     kubeconfig|*/kubeconfig|*.kubeconfig|.kube/*|*/.kube/*|admin.conf|*/admin.conf|rke2.yaml|*/rke2.yaml) return 0 ;;
     inventory.local*|*/inventory.local*|raw-inventory*|*/raw-inventory*|preflight-raw*|security-baseline-raw*) return 0 ;;
     backups/*|backup/*|*/backups/*|*/backup/*|docs/evidence/*|*/docs/evidence/*|.terraform/*|*/.terraform/*) return 0 ;;
-    *.log|*.log.*|*.out|*.trace|*.backup|*.backup.*|*.bak|*.bak.*|*.dump|*.sql.gz|*.tar.gz|*.tgz|*.tfstate|*.tfstate.*|*.tfvars|*.tfvars.json|crash.log) return 0 ;;
+    *.log|*.log.*|*.out|*.trace|*.backup|*.backup.*|*.bak|*.bak.*|*.dump|*.sql.gz|*.tar.gz|*.tgz|*.tfstate|*.tfstate.*|*.tfvars|*.tfvars.json) return 0 ;;
   esac
   return 1
 }

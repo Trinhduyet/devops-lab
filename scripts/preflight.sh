@@ -99,7 +99,7 @@ optional ip -br address
 optional ip route show table main
 optional ip -6 route show table main
 if command -v getent >/dev/null 2>&1 && command -v hostname >/dev/null 2>&1; then
-  optional sh -c 'host=$(hostname -f) && getent ahosts "$host"'
+  optional sh -c "host=\$(hostname -f) && getent ahosts \"\$host\""
 else
   printf '[NOT TESTED DNS lookup requires getent and hostname]\n'
   OPTIONAL_SKIPS=$((OPTIONAL_SKIPS + 1))
