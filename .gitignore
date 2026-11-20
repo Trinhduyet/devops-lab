@@ -1,0 +1,34 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.kubeconfig
+kubeconfig
+secrets/
+credentials/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+
+# Local evidence and backups
+docs/evidence/
+backups/
+*.backup
+*.dump
+*.sql.gz
+*.tar.gz
+
+# Common generated files
+.DS_Store
+Thumbs.db
+bin/
+obj/
