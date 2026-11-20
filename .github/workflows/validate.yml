@@ -87,13 +87,20 @@ jobs:
               print("Gitleaks report could not be parsed; finding details suppressed.")
               raise SystemExit(0)
 
-          for finding in findings:
-              print("Gitleaks finding: rule=%s file=%s line=%s commit=%s" % (
+          print("Gitleaks finding count (values suppressed): %s" % len(findings))
+          for finding in findings[:10]:
+              secret_value = finding.get("Secret", "")
+              print("Gitleaks finding: rule=%s file=%s line=%s columns=%s-%s length=%s commit=%s" % (
                   finding.get("RuleID", "unknown"),
                   finding.get("File", "unknown"),
                   finding.get("StartLine", "unknown"),
+                  finding.get("StartColumn", "unknown"),
+                  finding.get("EndColumn", "unknown"),
+                  len(secret_value) if isinstance(secret_value, str) else "unknown",
                   finding.get("Commit", "unknown"),
               ))
+          if len(findings) > 10:
+              print("Additional Gitleaks findings omitted from safe summary.")
           if not findings:
               print("Gitleaks reported non-zero without findings; scanner details suppressed.")
           PY
