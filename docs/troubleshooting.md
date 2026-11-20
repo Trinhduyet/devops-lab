@@ -36,7 +36,7 @@ Chỉ ghi root cause sau khi có bằng chứng. Mỗi case cần đủ: Symptom
 
 | Symptoms | Root Cause | Investigation | Resolution | Verification | Prevention |
 |---|---|---|---|---|---|
-| GitHub Actions `Required documentation, Bash syntax and tracked-path gates` thất bại khi gọi ShellCheck | ShellCheck cảnh báo biến retry không được đọc (`SC2034`) và pattern `crash.log` bị bao phủ bởi `*.log` (`SC2221`/`SC2222`) | Tải job log của run `44703366474`; các docs, Bash syntax, executable bits và tracked-path guard đã PASS trước khi ShellCheck chặn bước sau | Dùng bộ đếm retry có đọc trong điều kiện vòng lặp; bỏ case thừa và helper validator không sử dụng; làm rõ escaping DNS | Local `validate.sh repo` PASS sau sửa; ShellCheck local chưa cài, đợi GitHub Actions rerun để có bằng chứng CI cuối | Giữ ShellCheck trong validator/CI để lỗi lint chặn sớm; chỉ ghi CI PASS sau workflow xanh thực tế |
+| GitHub Actions `Required documentation, Bash syntax and tracked-path gates` thất bại khi gọi ShellCheck | ShellCheck cảnh báo biến retry không được đọc (`SC2034`) và pattern `crash.log` bị bao phủ bởi `*.log` (`SC2221`/`SC2222`) | Tải job log của run `44703366474`; docs, Bash syntax, executable bits và tracked-path guard đã PASS trước khi ShellCheck chặn bước sau | Dùng bộ đếm retry có đọc trong điều kiện vòng lặp; bỏ case thừa và helper validator không sử dụng; làm rõ escaping DNS | Local `validate.sh repo` PASS; Actions run `44703911448` xanh với docs/Bash/path gates, ShellCheck install, ShellCheck và Gitleaks | Giữ ShellCheck trong validator/CI để lỗi lint chặn sớm; chỉ ghi CI PASS sau workflow xanh thực tế |
 
 ## Kubernetes (sau khi đạt gate)
 
