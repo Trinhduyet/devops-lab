@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PLATFORM=$(uname -s)
+if [[ "$PLATFORM" != Linux ]]; then
+  printf 'NOT TESTED: API process/SIGTERM integration requires Linux; run it on a Linux host or the GitHub-hosted runner.\n'
+  exit 2
+fi
+
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 PROJECT="$ROOT/applications/dotnet-sample-api/DevOpsLab.SampleApi.csproj"
 TMP_ROOT=$(cd -- "${TMPDIR:-/tmp}" && pwd)
 TEMP_DIR=$(mktemp -d "$TMP_ROOT/devops-dotnet-api.XXXXXXXX")
 APP_LOG="$TEMP_DIR/app.log"
+NUGET_CONFIG="$TEMP_DIR/NuGet.Config"
+NUGET_PACKAGES="$TEMP_DIR/packages"
+APPDATA_DIR="$TEMP_DIR/appdata"
+HOME_DIR="$TEMP_DIR/home"
+DOTNET_HOME="$TEMP_DIR/dotnet-home"
 APP_PID=''
-APP_NAME_VALUE=devops-lab-smoke
-API_PORT=${API_PORT:-5089}
-BASE_URL="http://127.0.0.1:$API_PORT"
+APP_NAME_VALUE="devops-lab-smoke-${TEMP_DIR##*.}"
+BASE_URL=''
 
 stop_app() {
   local app_state='' index wait_status
@@ -75,37 +85,70 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ ! "$API_PORT" =~ ^[0-9]{1,5}$ ]] || (( API_PORT < 1024 || API_PORT > 65535 )); then
-  printf 'FAIL: API_PORT must be an unprivileged port from 1024 through 65535.\n' >&2
-  exit 2
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+export DOTNET_NOLOGO=1
+
+mkdir -p "$APPDATA_DIR/NuGet" "$HOME_DIR/.nuget/NuGet" "$DOTNET_HOME"
+cat > "$NUGET_CONFIG" <<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+  </packageSources>
+</configuration>
+XML
+
+if command -v cygpath >/dev/null 2>&1; then
+  APPDATA_DIR=$(cygpath -aw "$APPDATA_DIR")
+  HOME_DIR=$(cygpath -aw "$HOME_DIR")
+  NUGET_PACKAGES=$(cygpath -aw "$NUGET_PACKAGES")
+  DOTNET_HOME=$(cygpath -aw "$DOTNET_HOME")
 fi
 
-dotnet publish "$PROJECT" --configuration Release --output "$TEMP_DIR/publish"
+APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES" \
+  dotnet restore "$PROJECT" --configfile "$NUGET_CONFIG" --packages "$NUGET_PACKAGES"
+APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES" \
+  dotnet publish "$PROJECT" --configuration Release --no-restore --output "$TEMP_DIR/publish"
 
-ASPNETCORE_URLS="$BASE_URL" APP_NAME="$APP_NAME_VALUE" \
+ASPNETCORE_URLS='http://127.0.0.1:0' APP_NAME="$APP_NAME_VALUE" \
   dotnet "$TEMP_DIR/publish/DevOpsLab.SampleApi.dll" >"$APP_LOG" 2>&1 &
 APP_PID=$!
 
 ready=0
+process_match=0
+process_check_available=0
 for _ in {1..30}; do
-  if curl --fail --silent --max-time 2 "$BASE_URL/health/ready" >/dev/null 2>&1; then
-    ready=1
-    break
-  fi
   if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+  if [[ "$PLATFORM" == Linux && -r "/proc/$APP_PID/cmdline" ]]; then
+    process_check_available=1
+    if tr '\0' ' ' < "/proc/$APP_PID/cmdline" | grep -Fq "$TEMP_DIR/publish/DevOpsLab.SampleApi.dll"; then
+      process_match=1
+    fi
+  fi
+  API_PORT=$(sed -nE 's/.*Now listening on: http:\/\/127\.0\.0\.1:([0-9]+).*/\1/p' "$APP_LOG" | tail -n 1)
+  if [[ "$API_PORT" =~ ^[0-9]{1,5}$ ]]; then
+    BASE_URL="http://127.0.0.1:$API_PORT"
+    if curl --fail --silent --max-time 2 "$BASE_URL/health/ready" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+  fi
   sleep 1
 done
-if (( ready != 1 )); then
-  printf 'FAIL: API did not become ready on the loopback test port.\n' >&2
+if (( ready != 1 || (process_check_available == 1 && process_match != 1) )); then
+  printf 'FAIL: unique API process did not bind a random loopback port and become ready.\n' >&2
   tail -n 12 "$APP_LOG" >&2 || true
   exit 1
 fi
+printf 'PASS: Kestrel selected a free loopback port; endpoint identity will be checked against the unique process token.\n'
 
 root_payload=$(curl --fail --silent --show-error --max-time 5 "$BASE_URL/")
 if [[ "$root_payload" != *"\"service\":\"$APP_NAME_VALUE\""* || "$root_payload" != *'"status":"ok"'* || "$root_payload" != *'"version":"'* ]]; then
   printf 'FAIL: GET / did not return the configured service payload.\n' >&2
   exit 1
 fi
+printf 'PASS: root endpoint matched the unique smoke instance token.\n'
 printf 'PASS: GET / returned configured environment and version fields.\n'
 
 live_payload=$(curl --fail --silent --show-error --max-time 5 "$BASE_URL/health/live")
@@ -128,6 +171,10 @@ if ! stop_app; then
 fi
 if ! grep -Fq 'Application shutdown completed gracefully' "$APP_LOG"; then
   printf 'FAIL: graceful shutdown log event was not observed.\n' >&2
+  exit 1
+fi
+if ! grep -Fq 'Application stopping; readiness withdrawn' "$APP_LOG"; then
+  printf 'FAIL: readiness was not withdrawn when application stopping began.\n' >&2
   exit 1
 fi
 printf 'PASS: SIGTERM graceful shutdown observed.\n'

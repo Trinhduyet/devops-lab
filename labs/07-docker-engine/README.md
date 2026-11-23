@@ -2,7 +2,7 @@
 
 ## Mục tiêu và trạng thái
 
-Hiểu đường đi từ Docker CLI tới kernel, cài Docker Engine qua repository chính thức khi các gate đạt, xác minh phiên bản và chạy workload có giới hạn. Lab này chưa được cài trên VPS: public-service gate hiện chưa đạt do live host SSH/UFW checks; không thay đổi host trong lần đánh giá này.
+Hiểu đường đi từ Docker CLI tới kernel, cài Docker Engine qua repository chính thức khi host-change gate và approval đạt, xác minh phiên bản và chạy workload có giới hạn. Việc Compose chỉ bind loopback cần host-change gate nhưng không phải public exposure. Lab này chưa được cài trên VPS; chưa thay đổi host.
 
 ## Lý thuyết
 
@@ -27,8 +27,8 @@ docker CLI --Unix socket/API--> dockerd --> containerd --> runc --> Linux kernel
 ## Điều kiện và resource gates
 
 - Đọc [resource budget](../../docs/resource-budget.md), [SSH runbook](../../docs/runbooks/ssh-hardening.md), [UFW runbook](../../docs/runbooks/phase-0-preflight.md), skill [container-runtime-lab](../../.agents/skills/container-runtime-lab/SKILL.md).
-- Trước khi cài: chạy lại phase-0 và `public-services`; có provider/rescue evidence còn fresh; xem `MemAvailable`, disk free, cgroup v2, `overlay`, `br_netfilter`, forwarding, UFW/nftables, packages và services.
-- Ubuntu 24.04 amd64 được Docker Engine hỗ trợ theo tài liệu chính thức đã kiểm tra ngày 2026-11-23. Trước khi ghim package, lấy phiên bản hiện hành bằng `apt-cache madison docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`; chưa có package version nào được phê duyệt trong lab này.
+- Trước khi cài: chạy `host-change`; có provider/rescue evidence còn fresh; xác minh SSH recovery, `MemAvailable`, disk free, cgroup v2, `overlay`, forwarding, UFW/nftables, packages và services. Gate `public-services` chỉ áp dụng nếu dịch vụ cần public ingress.
+- Ubuntu 24.04 amd64 được Docker Engine hỗ trợ. Runbook [Docker Engine install](../../docs/runbooks/docker-engine-install.md) ghi exact package versions đã đối chiếu với official index ngày 2026-11-23; refresh index và `apt-cache policy` ngay trước lần cài. Chưa package nào được cài trên VPS.
 - Chỉ cài sau explicit approval cho package cài đặt và side effect Docker lên packet filtering/IP forwarding. Không đồng thời thay đổi SSH/UFW. Không expose port/API.
 - Gate workload tối thiểu: VPS vẫn có ít nhất 1 GiB `MemAvailable`, tối thiểu 5 GiB disk trống, không có `memory`/`io` PSI pressure tăng bất thường trong quan sát liên tiếp. Đây là ngưỡng bảo thủ cho lab, không phải sizing production.
 
@@ -78,7 +78,7 @@ Chạy sample workload chỉ sau khi có image tag và digest được verify, v
 | OCI runtime | `docker inspect <lab-container>` | Image digest, user, state, caps/security options và resource limits khớp khai báo. |
 | API exposure | `sudo ss -lntup` | Docker API chỉ qua Unix socket; không có TCP API listener. |
 
-Commands thực thi qua `scripts/run-remote.ps1` chỉ sau gate/approval. Runtime evidence: **NOT TESTED** trên VPS; Docker package và service chưa được cài.
+Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và explicit package/network approval. Runtime evidence: **NOT TESTED** trên VPS; Docker package và service chưa được cài. Docker container smoke chạy trên hosted runner sau khi CI được kích hoạt, không tiêu thụ VPS.
 
 ## Troubleshooting
 
@@ -89,7 +89,7 @@ Commands thực thi qua `scripts/run-remote.ps1` chỉ sau gate/approval. Runtim
 
 ## Security, backup/rollback và cleanup
 
-- Docker daemon package/service là host change, không phải reversible app-only test. Trước khi cài: ghi package versions, kiểm tra backup/rollback và đánh giá forwarding/filter changes. Approval cho install không đồng nghĩa approval cho UFW hay SSH edits.
+- Docker daemon package/service là host change, không phải reversible app-only test. Theo [install runbook](../../docs/runbooks/docker-engine-install.md): exact package pin, apt simulation, root-only backup, timer để dừng Docker service, rescue console và session SSH độc lập. Timer không tự restore firewall; không restore toàn bộ ruleset mù quáng. Approval cho install không đồng nghĩa approval cho UFW hay SSH edits.
 - Không có persistent app data trong Lab 07. Không dùng `docker system prune`, `docker volume prune` hoặc xóa objects không thuộc lab.
 - Dừng/xóa đúng Compose project đã tạo; kiểm tra `docker ps -a`, `docker network ls`, `docker volume ls`, `systemctl show docker containerd` và listener. Giữ Docker Engine cài giữa các lab sau, trừ khi rollback uninstall được phê duyệt riêng.
 

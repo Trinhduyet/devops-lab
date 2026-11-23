@@ -17,8 +17,8 @@ Không chuyển phase theo lịch nếu gate hoặc evidence còn thiếu. Mỗi
 
 | Lab | Nội dung | Trạng thái/điều kiện |
 |---|---|---|
-| 07 | Docker Engine, CLI/API, containerd/runc, OCI, OverlayFS, namespaces/cgroups | Tài liệu sẵn sàng; install BLOCKED tới khi live public-service/resource gates đạt và Docker host/network side effects được approve. |
-| 08 | Bridge, veth, DNS, NAT, port publishing, SSH tunnel | BLOCKED; chỉ localhost binding, không mở public app ports. |
+| 07 | Docker Engine, CLI/API, containerd/runc, OCI, OverlayFS, namespaces/cgroups | Runbook/pins sẵn sàng; read-only `host-change` gate PASS; chờ explicit install approval, hosted Docker CI result và rollback preconditions. Public-service gate riêng chỉ cần cho Internet ingress. |
+| 08 | Bridge, veth, DNS, NAT, port publishing, SSH tunnel | BLOCKED cho tới khi Engine cài được duyệt; loopback-only exercises, không mở public app ports. |
 | 09 | Image layers, writable layer, named volumes, bind mounts, disk metrics | BLOCKED; bounded marker data; không prune hoặc format. |
 | 10 | Non-root ASP.NET Core, health, JSON logs, resource limits, Compose | Source build và local HTTP smoke PASS; image/container local và VPS NOT TESTED. |
 

@@ -2,7 +2,7 @@
 
 ## Mục tiêu và trạng thái
 
-Tạo API ít phụ thuộc để luyện multi-stage build, non-root image, health probes, resource limits, logs, localhost-only publish và SSH tunnel. Source build và Windows/local HTTP smoke đã chạy PASS. Docker image/container trên local daemon và VPS **NOT TESTED**; triển khai VPS đang chờ public-service gate và approval riêng.
+Tạo API ít phụ thuộc để luyện multi-stage build, non-root image, health probes, resource limits, logs, localhost-only publish và SSH tunnel. Source build và Windows/local HTTP smoke đã chạy PASS. Docker container integration chạy trên GitHub-hosted runner; VPS Compose deployment cần host-change gate và approval cài runtime. `public-services` chỉ áp dụng nếu expose dịch vụ Internet. VPS container runtime **NOT TESTED**.
 
 Source: [`applications/dotnet-sample-api`](../../applications/dotnet-sample-api/README.md).
 
@@ -55,10 +55,10 @@ VPS access chỉ bằng `ssh -N -L 8080:127.0.0.1:8080 devops-lab`; không mở 
 | .NET 10 Release source build | PASS, zero warnings/errors, isolated NuGet config/cache |
 | Local HTTP | PASS: `/`, `/health/live`, `/health/ready`; service name config được đọc |
 | Windows graceful SIGTERM | NOT TESTED; lần test process dừng bằng force cleanup sau khi Ctrl+C từ PTY không dừng |
-| Linux CI smoke/shutdown | PENDING CI run |
+| Linux CI smoke/shutdown | PASS, hosted run 45102993039 |
 | Compose YAML parse | PASS (`docker compose ... config --quiet`) |
 | Docker image/container local | NOT TESTED; Docker daemon không khả dụng |
-| VPS deployment | BLOCKED; host public-service gate chưa đạt |
+| VPS deployment | BLOCKED pending explicit Docker installation approval and post-install verification; public-exposure gate is separate |
 | Test process cleanup | PASS; exact listener process dừng và test port đóng |
 
 ## Troubleshooting

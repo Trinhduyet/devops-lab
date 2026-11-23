@@ -4,7 +4,7 @@ export LC_ALL=C
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 TEST_DIR=$(mktemp -d /tmp/devops-validator-test.XXXXXX)
-cleanup() { rm -f -- "$TEST_DIR/bin/sshd" "$TEST_DIR/bin/ufw" "$TEST_DIR/evidence.env" "$TEST_DIR/output.txt"; rmdir -- "$TEST_DIR/bin" && rmdir -- "$TEST_DIR"; }
+cleanup() { rm -f -- "$TEST_DIR/bin/sshd" "$TEST_DIR/bin/ufw" "$TEST_DIR/bin/id" "$TEST_DIR/evidence.env" "$TEST_DIR/output.txt"; rmdir -- "$TEST_DIR/bin" && rmdir -- "$TEST_DIR"; }
 trap cleanup EXIT
 mkdir -p "$TEST_DIR/bin"
 umask 077
@@ -15,13 +15,19 @@ if [[ "${1:-}" == -t ]]; then exit 0; fi
 if [[ "${1:-}" == -T && "${2:-}" == -C ]]; then
   printf 'pubkeyauthentication yes\n'
   printf 'passwordauthentication %s\n' "${MOCK_SSHD_PASSWORD:-no}"
-  printf 'permitrootlogin prohibit-password\n'
+  printf 'permitrootlogin %s\n' "${MOCK_SSHD_ROOT_LOGIN:-prohibit-password}"
   printf 'kbdinteractiveauthentication no\n'
+  printf 'hostbasedauthentication %s\n' "${MOCK_SSHD_HOSTBASED:-no}"
+  printf 'gssapiauthentication %s\n' "${MOCK_SSHD_GSSAPI:-no}"
 elif [[ "${1:-}" == -T ]]; then
   printf 'usedns no\n'
 else
   exit 64
 fi
+SH
+cat > "$TEST_DIR/bin/id" <<'SH'
+#!/usr/bin/env bash
+if [[ "${1:-}" == -un ]]; then printf '%s\n' "${MOCK_SSH_USER:-devops-lab}"; else exec /usr/bin/id "$@"; fi
 SH
 cat > "$TEST_DIR/bin/ufw" <<'SH'
 #!/usr/bin/env bash
@@ -32,7 +38,7 @@ else
   printf '22/tcp ALLOW IN Anywhere\n'
 fi
 SH
-chmod 700 "$TEST_DIR/bin/sshd" "$TEST_DIR/bin/ufw"
+chmod 700 "$TEST_DIR/bin/sshd" "$TEST_DIR/bin/ufw" "$TEST_DIR/bin/id"
 
 now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 stale=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
@@ -55,7 +61,7 @@ run_gate_case fresh-manual-evidence 0
 
 printf 'PROVIDER_FIREWALL=PASS,MANUAL,%s\nPROVIDER_FIREWALL=PASS,MANUAL,%s\nCONSOLE_RECOVERY=PASS,MANUAL,%s\n' "$now" "$now" "$now" > "$TEST_DIR/evidence.env"
 run_gate_case duplicate-key 1
-grep -Fq 'duplicate public-service evidence key' "$TEST_DIR/output.txt"
+grep -Fq 'duplicate manual evidence key' "$TEST_DIR/output.txt"
 
 printf 'PROVIDER_FIREWALL=PASS\nCONSOLE_RECOVERY=PASS,MANUAL,%s\n' "$now" > "$TEST_DIR/evidence.env"
 run_gate_case malformed-record 1
@@ -68,6 +74,19 @@ if grep -Fq 'PASS: PROVIDER_FIREWALL' "$TEST_DIR/output.txt"; then printf 'FAIL:
 printf 'PROVIDER_FIREWALL=PASS,MANUAL,%s\nCONSOLE_RECOVERY=PASS,MANUAL,%s\n' "$now" "$now" > "$TEST_DIR/evidence.env"
 run_gate_case live-host-state-overrides-recorded-status 1 env MOCK_SSHD_PASSWORD=yes
 grep -Fq 'live sshd Match/Include-resolved policy does not meet' "$TEST_DIR/output.txt"
+
+printf 'PROVIDER_FIREWALL=PASS,MANUAL,%s\nCONSOLE_RECOVERY=PASS,MANUAL,%s\n' "$now" "$now" > "$TEST_DIR/evidence.env"
+run_gate_case nonroot-account-with-root-login-disabled 0 env MOCK_SSH_USER=devops-lab MOCK_SSHD_ROOT_LOGIN=no
+grep -Fq 'PermitRootLogin is compatible with the current management account' "$TEST_DIR/output.txt"
+
+run_gate_case root-account-with-root-login-disabled 1 env MOCK_SSH_USER=root MOCK_SSHD_ROOT_LOGIN=no
+grep -Fq 'does not meet strict key-only requirements' "$TEST_DIR/output.txt"
+
+run_gate_case hostbased-authentication-enabled 1 env MOCK_SSHD_HOSTBASED=yes
+grep -Fq 'does not meet strict key-only requirements' "$TEST_DIR/output.txt"
+
+run_gate_case gssapi-authentication-enabled 1 env MOCK_SSHD_GSSAPI=yes
+grep -Fq 'does not meet strict key-only requirements' "$TEST_DIR/output.txt"
 
 printf 'PROVIDER_FIREWALL=PASS,VPS_LIVE,%s\nCONSOLE_RECOVERY=PASS,MANUAL,%s\n' "$now" "$now" > "$TEST_DIR/evidence.env"
 run_gate_case wrong-evidence-provenance 1

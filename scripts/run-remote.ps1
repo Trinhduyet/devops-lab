@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('phase-0', 'lab-01', 'lab-02', 'lab-03', 'lab-04', 'lab-05', 'lab-06', 'public-services')]
+    [ValidateSet('phase-0', 'lab-01', 'lab-02', 'lab-03', 'lab-04', 'lab-05', 'lab-06', 'host-change', 'public-services')]
     [string]$Phase,
     [string]$SshAlias = 'devops-lab',
     [string]$SshCommand = 'ssh.exe',
@@ -21,6 +21,7 @@ $scriptNames = switch ($Phase) {
     'lab-04' { @('lab04-networking.sh', 'validate.sh') }
     'lab-05' { @('lab05-storage.sh', 'validate.sh') }
     'lab-06' { @('lab06-bash-automation.sh', 'validate.sh') }
+    'host-change' { @('validate.sh') }
     'public-services' { @('validate.sh') }
 }
 
@@ -30,8 +31,8 @@ foreach ($name in $scriptNames) {
 }
 
 $evidencePath = Join-Path $repoRoot 'docs/evidence/public-services.env'
-$uploadEvidence = $Phase -eq 'public-services' -and (Test-Path -LiteralPath $evidencePath -PathType Leaf)
-if ($uploadEvidence -and (Get-Item -LiteralPath $evidencePath).Length -eq 0) { throw 'Public-service manual evidence file is empty.' }
+$uploadEvidence = $Phase -in @('host-change', 'public-services') -and (Test-Path -LiteralPath $evidencePath -PathType Leaf)
+if ($uploadEvidence -and (Get-Item -LiteralPath $evidencePath).Length -eq 0) { throw 'Manual provider/recovery evidence file is empty.' }
 
 $tempOutput = & $ssh.Source @sshOptions $SshAlias 'umask 077; mktemp -d /tmp/devops-lab.XXXXXXXX'
 if ($LASTEXITCODE -ne 0) { throw "Could not create a remote temporary directory (ssh exit=$LASTEXITCODE)." }
@@ -66,6 +67,8 @@ try {
 
     if ($Phase -eq 'public-services') {
         & $ssh.Source @sshOptions $SshAlias "PUBLIC_SERVICES_SSH_KEY_VERIFIED=PASS PUBLIC_SERVICES_EVIDENCE_FILE='$remoteScripts/evidence.env' bash '$remoteScripts/validate.sh' '$Phase'"
+    } elseif ($Phase -eq 'host-change') {
+        & $ssh.Source @sshOptions $SshAlias "HOST_CHANGE_SSH_KEY_VERIFIED=PASS HOST_CHANGE_EVIDENCE_FILE='$remoteScripts/evidence.env' bash '$remoteScripts/validate.sh' '$Phase'"
     } else {
         & $ssh.Source @sshOptions $SshAlias "bash '$remoteScripts/validate.sh' '$Phase'"
     }

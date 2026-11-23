@@ -43,12 +43,24 @@ internal sealed class ReadinessState
 
 internal sealed class LifecycleService(
     ReadinessState readiness,
+    IHostApplicationLifetime lifetime,
     ILogger<LifecycleService> logger) : IHostedService
 {
+    private CancellationTokenRegistration _applicationStarted;
+    private CancellationTokenRegistration _applicationStopping;
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        readiness.SetReady(true);
-        logger.LogInformation("Application started and is ready");
+        _applicationStarted = lifetime.ApplicationStarted.Register(() =>
+        {
+            readiness.SetReady(true);
+            logger.LogInformation("Application started and is ready");
+        });
+        _applicationStopping = lifetime.ApplicationStopping.Register(() =>
+        {
+            readiness.SetReady(false);
+            logger.LogInformation("Application stopping; readiness withdrawn");
+        });
         return Task.CompletedTask;
     }
 
@@ -57,5 +69,11 @@ internal sealed class LifecycleService(
         readiness.SetReady(false);
         logger.LogInformation("Application shutdown completed gracefully");
         return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _applicationStarted.Dispose();
+        _applicationStopping.Dispose();
     }
 }

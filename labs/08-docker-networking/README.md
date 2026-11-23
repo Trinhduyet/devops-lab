@@ -2,7 +2,7 @@
 
 ## Mục tiêu và trạng thái
 
-Quan sát bridge, veth, embedded DNS, NAT và port publishing. Lab đang **BLOCKED** vì Docker Engine chưa được cài và public-service gate chưa đạt. Không cấu hình host networking/firewall trong lần này.
+Quan sát bridge, veth, embedded DNS, NAT và port publishing. Lab đang **BLOCKED / NOT TESTED** vì Docker Engine chưa được cài. Cài runtime cần `host-change` gate và approval; chỉ một bài tập mở ingress Internet mới cần `public-services`. Không cấu hình host networking/firewall trong lab.
 
 ## Lý thuyết
 

@@ -18,9 +18,10 @@ flowchart LR
 1. VPS một node dùng trước cho Linux, network và container runtime exercises; không giả định có public IPv4. Kiểm tra IPv6, private IPv4, NAT, DNS và firewall trước khi mở public service.
 2. Windows OpenSSH key-only proof không đồng nghĩa server password authentication đã tắt. SSH hardening plan tách riêng và chưa áp dụng.
 3. Linux safe labs không phụ thuộc public-service gate; các bài này không mở port hay sửa firewall/SSH/network.
-4. Docker API sample đầu tiên bind localhost và được truy cập qua SSH tunnel. Review host/provider ingress và Docker firewall behavior trước khi publish port.
-5. kubeadm và RKE2 có phase riêng. Trước khi chuyển runtime: snapshot/backup, kiểm chứng backup, cleanup và resource gate. Rancher/monitoring stack chạy local nếu VPS không đủ budget.
-6. Kubernetes API, etcd, kubelet, NodePort và RKE2 registration ports không mở Internet mặc định.
+4. Docker installation uses a separate host-change gate for recovery, resources, kernel and firewall impact. A localhost-bound Docker Compose API is not public exposure, but runtime installation still requires exact package approval and rollback preparation. Public-service gate applies when publishing a service to the Internet.
+5. Docker API sample đầu tiên bind localhost và được truy cập qua SSH tunnel. Review Docker firewall behavior before publishing any public port.
+6. kubeadm và RKE2 có phase riêng. Trước khi chuyển runtime: snapshot/backup, kiểm chứng backup, cleanup và resource gate. Rancher/monitoring stack chạy local nếu VPS không đủ budget.
+7. Kubernetes API, etcd, kubelet, NodePort và RKE2 registration ports không mở Internet mặc định.
 
 ## Repository responsibilities
 

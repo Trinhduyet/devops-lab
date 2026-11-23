@@ -51,6 +51,12 @@ sudo grep -nEi 'icmpv6|ipv6-icmp' /etc/ufw/before6.rules
 
 Rule dumps can contain host addresses, interfaces and source networks. Keep them in the local terminal; do not paste raw output into GitHub. `ufw status` lists UFW-managed rules, while raw rules and persisted files are needed to understand other firewall managers. See [ufw(8)](https://manpages.ubuntu.com/manpages/noble/man8/ufw.8.html) and [ufw-framework(8)](https://manpages.ubuntu.com/manpages/noble/man8/ufw-framework.8.html).
 
+## Docker host-change versus public exposure
+
+Run `.\scripts\run-remote.ps1 -Phase host-change` before a Docker package installation. This read-only gate checks the current key-only management session, SSH service and syntax, fresh manual provider/rescue evidence, capacity, cgroup/kernel support, and collects the current firewall/forwarding state for impact review. Exit `0` is necessary evidence for the install review; it is not approval to change the host.
+
+Run `scripts/validate.sh public-services` only when the intended service will be reachable from the Internet. A Compose mapping on `127.0.0.1` is not public exposure, but Docker installation still changes the host runtime/network surface and requires host-change approval and rollback. Docker's port-publishing behavior must still be checked after installation.
+
 ## Required preconditions before any firewall change
 
 Firewall changes can interrupt the only management path. Do not change firewall/network state until all of these are true and the specific change set has been confirmed:

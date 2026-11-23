@@ -42,9 +42,12 @@ Thứ tự thực hành giữ riêng kubeadm và RKE2; trước khi chuyển run
 
 ## Gate bảo mật và kernel còn mở
 
-- Không cài Docker hoặc expose API cho tới khi host/provider ingress firewall và management recovery path được kiểm soát.
+- Tách hai gate: `host-change` kiểm tra management/recovery, resource budget, cgroup, kernel và đánh giá firewall trước khi cài Docker. `public-services` kiểm tra policy SSH/UFW/provider ingress trước khi mở dịch vụ tới Internet. Docker Compose chỉ bind `127.0.0.1` vẫn cần host-change gate, approval cài package và kế hoạch rollback; không cần coi API là Internet-facing service.
+- Docker không được cài trước khi `host-change` exit 0, provider/rescue evidence còn fresh, có SSH key-only và rescue path, resource gates đạt, và user phê duyệt đúng package/network impact. Public exposure gate vẫn độc lập và cần nếu service nghe trên public interface.
 - Không bật firewall hoặc thay đổi SSH/network trước khi ingress path, verified provider console/out-of-band access, backup, rollback timer và SSH session thứ hai đã được kiểm chứng. Đây là các thay đổi có thể ngắt kết nối và cần xác nhận rõ ràng.
-- `ip_forward=0`, bridge sysctl thiếu và overlay/br_netfilter chưa thấy được nạp. Trước khi cài Docker, xác nhận `modinfo overlay`/`modinfo br_netfilter`, rồi chọn thay đổi đúng cho Docker; kubeadm/RKE2 sẽ có preflight riêng.
+- Docker host-change resource gate: `MemAvailable >= 1536 MiB`, one-minute load below online CPU count, `/` at least 8 GiB free and below 80% used, cgroup v2, OverlayFS available, plus readable UFW/iptables/ip6tables/nftables and forwarding state. These are minimum install checks, not a grant to change sysctls or firewall policy.
+- During each bounded API container exercise, set limits of 192 MiB memory, 0.50 CPU, 64 PIDs, 16 MiB `/tmp`, and 15 seconds graceful stop. Do not build images on the VPS when the resource gate is marginal; hosted CI performs image integration tests on a GitHub runner.
+- `ip_forward=0`, bridge sysctl missing, or modules absent must be freshly assessed. Docker may create bridge/firewall rules and change forwarding behavior on startup; do not change SSH/UFW/provider rules as part of installation. kubeadm/RKE2 will have independent network preflights.
 - Docker Engine tự quản lý firewall cho bridge network; tài liệu Docker cảnh báo port publish có thể bypass UFW. Không dùng UFW làm lớp kiểm soát duy nhất cho public container ports; lab đầu bind `127.0.0.1`, public exposure cần thiết kế riêng theo Docker `DOCKER-USER`/backend tương ứng.
 
 ## Budget cho Linux labs

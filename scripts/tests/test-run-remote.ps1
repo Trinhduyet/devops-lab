@@ -16,6 +16,7 @@ if ($env:MOCK_SSH_FAIL_AT -and $global:MockSshCallCount -eq [int]$env:MOCK_SSH_F
 if ($global:MockSshCallCount -eq 1) { Write-Output '/tmp/devops-lab.ABCDE123'; $global:LASTEXITCODE = 0; return }
 if ($remoteCommand -like 'bash -n *' -and $env:MOCK_BASH_N_EXIT) { $global:LASTEXITCODE = [int]$env:MOCK_BASH_N_EXIT; return }
 if ($remoteCommand -match "^bash\s+'[^']+/validate\.sh'\s+'lab-03'$") { $global:LASTEXITCODE = [int]$env:MOCK_REMOTE_EXIT; return }
+if ($remoteCommand -match "^HOST_CHANGE_SSH_KEY_VERIFIED=PASS HOST_CHANGE_EVIDENCE_FILE='[^']+' bash '[^']+/validate\.sh' 'host-change'$" -or $remoteCommand -match "^PUBLIC_SERVICES_SSH_KEY_VERIFIED=PASS PUBLIC_SERVICES_EVIDENCE_FILE='[^']+' bash '[^']+/validate\.sh' 'public-services'$") { $global:LASTEXITCODE = [int]$env:MOCK_REMOTE_EXIT; return }
 if ($remoteCommand -like '*rm -f*' -and $env:MOCK_CLEANUP_FAIL -eq '1') { $global:LASTEXITCODE = 24; return }
 $global:LASTEXITCODE = 0
 '@
@@ -30,6 +31,7 @@ function Invoke-MockScenario {
     param(
         [Parameter(Mandatory)] [string]$Name,
         [Parameter(Mandatory)] [int]$ExpectedExit,
+        [string]$Phase = 'lab-03',
         [hashtable]$Environment = @{},
         [string]$ExpectedLog = '',
         [string]$ForbiddenLog = ''
@@ -44,12 +46,12 @@ function Invoke-MockScenario {
     foreach ($entry in $Environment.GetEnumerator()) { Set-Item -Path "Env:$($entry.Key)" -Value ([string]$entry.Value) }
 
     $pwsh = Join-Path $PSHOME 'pwsh.exe'
-    $childOutput = & $pwsh -NoLogo -NoProfile -File $helper -Phase lab-03 -SshCommand $sshMock -ScpCommand $scpMock 2>&1
+    $childOutput = & $pwsh -NoLogo -NoProfile -File $helper -Phase $Phase -SshCommand $sshMock -ScpCommand $scpMock 2>&1
     $actualExit = $LASTEXITCODE
     if ($actualExit -ne $ExpectedExit) { throw "$Name expected exit $ExpectedExit, got $actualExit. Output: $($childOutput -join ' ')" }
 
     $log = if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Raw } else { '' }
-    if ($ExpectedLog -and $log -notlike "*$ExpectedLog*") { throw "$Name did not log expected call marker '$ExpectedLog'." }
+    if ($ExpectedLog -and $log -notlike "*$ExpectedLog*") { throw "$Name did not log expected call marker '$ExpectedLog'. Actual calls: $log" }
     if ($ForbiddenLog -and $log -like "*$ForbiddenLog*") { throw "$Name unexpectedly logged forbidden call marker '$ForbiddenLog'." }
     Write-Output "PASS: remote helper mock scenario $Name (exit=$actualExit)."
 }
@@ -57,6 +59,7 @@ function Invoke-MockScenario {
 try {
     if (-not (Test-Path -LiteralPath $helper -PathType Leaf)) { throw 'run-remote.ps1 is missing.' }
     Invoke-MockScenario -Name success -ExpectedExit 0 -Environment @{ MOCK_REMOTE_EXIT = 0 } -ExpectedLog 'rm -f'
+    Invoke-MockScenario -Name host-change-context -Phase host-change -ExpectedExit 0 -Environment @{ MOCK_REMOTE_EXIT = 0 } -ExpectedLog 'HOST_CHANGE_SSH_KEY_VERIFIED=PASS'
     Invoke-MockScenario -Name ssh-create-failure -ExpectedExit 1 -Environment @{ MOCK_SSH_FAIL_AT = 1 } -ExpectedLog 'SSH|1|' -ForbiddenLog 'rm -f'
     Invoke-MockScenario -Name ssh-mkdir-failure -ExpectedExit 1 -Environment @{ MOCK_SSH_FAIL_AT = 2 } -ExpectedLog 'rm -f'
     Invoke-MockScenario -Name remote-bash-syntax-failure -ExpectedExit 1 -Environment @{ MOCK_BASH_N_EXIT = 2 } -ExpectedLog 'rm -f'

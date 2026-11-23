@@ -22,6 +22,7 @@ ssh devops-lab
 .\scripts\run-remote.ps1 -Phase lab-04
 .\scripts\run-remote.ps1 -Phase lab-05
 .\scripts\run-remote.ps1 -Phase lab-06
+.\scripts\run-remote.ps1 -Phase host-change
 ```
 
 `run-remote.ps1` chỉ upload các Bash scripts cần thiết vào remote `mktemp` directory, chạy `bash -n` riêng từng file, gọi phase validator rồi cleanup đúng temporary directory của lần chạy.
@@ -45,11 +46,14 @@ ssh devops-lab
 .\scripts\run-remote.ps1 -Phase lab-05
 .\scripts\run-remote.ps1 -Phase lab-06
 
-# Public-service gate riêng; cần evidence đã làm sạch
+# Docker installation gate; read-only, no package changes
+.\scripts\run-remote.ps1 -Phase host-change
+
+# Public-exposure gate; only for a service reachable from the Internet
 ./scripts/validate.sh public-services
 ```
 
-Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. Gitleaks scan chạy trên reachable Git history đã fetch; CI log xác nhận số commits scanned và chỉ in kết quả đã redact. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner. Public-service gate hiện chưa đạt; không thay đổi SSH/firewall/network và chưa cài Docker trên VPS.
+Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. Gitleaks scan chạy trên reachable Git history đã fetch; CI log xác nhận số commits scanned và chỉ in kết quả đã redact. GitHub Actions chạy Docker integration trên GitHub-hosted runner, không dùng VPS làm runner. Gate cài host Docker (`host-change`) khác gate mở dịch vụ Internet (`public-services`); Compose localhost-only vẫn cần host-change và approval cài package, nhưng không bị phân loại là public service. Chưa cài Docker trên VPS.
 
 ## Resource constraints
 

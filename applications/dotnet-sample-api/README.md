@@ -19,7 +19,7 @@ dotnet --info
 dotnet build .\applications\dotnet-sample-api\DevOpsLab.SampleApi.csproj --configuration Release
 ```
 
-Integration smoke test dùng Bash, `curl` và .NET SDK; process chỉ bind loopback và script tự dừng nó bằng `SIGTERM`, kiểm tra graceful shutdown rồi xóa chính xác thư mục tạm:
+Linux integration smoke test dùng Bash, `curl` và .NET SDK; Kestrel tự chọn một ephemeral loopback port để tránh collision. Script xác minh `/proc` của chính process được publish trước khi gửi requests, dừng nó bằng `SIGTERM`, kiểm tra graceful shutdown rồi xóa đúng thư mục tạm. Windows local dùng `tests/smoke.ps1` cho HTTP checks; SIGTERM lifecycle được kiểm tra trên Linux runner.
 
 ```bash
 ./scripts/test-dotnet-api.sh
@@ -65,7 +65,7 @@ VPS deployment đang chờ security gate, explicit approval cho từng host chan
 - `/health/ready` chưa trả 200: đọc JSON logs, kiểm tra app startup và hosted lifecycle; không biến readiness thành liveness.
 - Container không start dưới non-root: kiểm tra permissions của mounted paths; API này không cần mount có quyền ghi.
 - Docker image build lỗi tag: đối chiếu tag SDK/runtime đang được Microsoft publish; không đổi sang `latest` tùy tiện.
-- Port bận: đổi `API_PORT` cho script local hoặc host-side port trong Compose; vẫn bind `127.0.0.1`.
+- Local smoke port collision: script dùng `ASPNETCORE_URLS=http://127.0.0.1:0` và dùng port Kestrel ghi ra log; không cần đặt port cố định. Với Compose, chỉ đổi host-side port và giữ `127.0.0.1` binding.
 - Docker Desktop engine unavailable: image build/container smoke là `NOT TESTED`; .NET source build không chứng minh Docker runtime.
 
 ## Verification và cleanup
@@ -86,7 +86,7 @@ VPS deployment đang chờ security gate, explicit approval cho từng host chan
 | Windows/local HTTP smoke | PASS — `/`, `/health/live`, `/health/ready` |
 | Linux graceful shutdown integration | PASS — hosted CI observed SIGTERM shutdown log, process exit `0` and exact temporary cleanup |
 | Windows graceful shutdown | NOT TESTED — Windows test process required force cleanup after Ctrl+C did not stop it |
-| Docker image/container on local engine | NOT TESTED — local Docker daemon unavailable at assessment |
+| Docker image/container on local engine | NOT TESTED — local Docker daemon unavailable; hosted-runner container integration is added to CI and awaits its run |
 | VPS Docker deployment | BLOCKED — live SSH/UFW security gate failed and each host change needs separate approval |
 | Production readiness | Not claimed |
 
