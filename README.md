@@ -6,7 +6,7 @@ Lab học DevOps có thể tái triển khai: hiểu Linux bằng CLI, thực h�
 
 - **Môi trường:** máy cá nhân Windows dùng OpenSSH; VPS Linux một node là môi trường thực hành, không phải production.
 - **Luồng công nghệ:** Linux → Docker → containerd → kubeadm single-node → RKE2 có điều kiện → Rancher nếu resource gate cho phép.
-- **Phạm vi hiện tại:** Linux Labs 01–06; public-service security gate riêng để không chặn Linux exercises an toàn.
+- **Phạm vi học:** Linux Labs 01–06; Docker Labs 07–09; ASP.NET Core Lab 10; containerd Lab 11. Lab 07–11 có runbooks; Docker/host deployment chưa chạy cho tới khi security/resource gates đạt.
 - **Tiến độ chuẩn:** [docs/progress.md](docs/progress.md) là single source of truth. Hạ tầng đã quan sát ở [docs/infrastructure.md](docs/infrastructure.md); budget và gate ở [docs/resource-budget.md](docs/resource-budget.md); kiến trúc ở [docs/architecture.md](docs/architecture.md).
 
 ## Quick start trên Windows
@@ -29,7 +29,7 @@ ssh devops-lab
 ## Current lab và next lab
 
 - **Linux Labs 01–06:** đã chạy và ghi runtime evidence trong [docs/progress.md](docs/progress.md). Networking/storage chỉ quan sát; Lab 03 dùng transient cgroup bounded workload; Lab 06 sample files được cleanup chính xác.
-- **Next:** Docker/containerd vẫn deferred đến khi security/runtime gates phù hợp được xác minh. Xem [roadmap](docs/roadmap.md).
+- **Docker Labs 07–09, API Lab 10, containerd Lab 11:** học liệu và runbooks đã chuẩn bị. API source build/local HTTP smoke đã qua; Docker image/container và VPS runtime chưa được kiểm chứng. Xem [roadmap](docs/roadmap.md) và [progress](docs/progress.md).
 
 ## Validation commands
 
@@ -49,7 +49,7 @@ ssh devops-lab
 ./scripts/validate.sh public-services
 ```
 
-Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. Gitleaks scan chạy trên reachable Git history đã fetch; CI log xác nhận số commits scanned và chỉ in kết quả đã redact. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner.
+Exit code của validator: `0` required gates đạt; `1` required gate thất bại; `2` thiếu required evidence. `preflight.sh` và `security-baseline.sh` là inventory scripts, không phải bằng chứng deployment/security gate PASS. Optional check có thể ở trạng thái `NOT TESTED` mà không chặn lab không liên quan. Gitleaks scan chạy trên reachable Git history đã fetch; CI log xác nhận số commits scanned và chỉ in kết quả đã redact. CI chạy trên GitHub-hosted runner; VPS không chạy self-hosted runner. Public-service gate hiện chưa đạt; không thay đổi SSH/firewall/network và chưa cài Docker trên VPS.
 
 ## Resource constraints
 
@@ -57,6 +57,6 @@ VPS package 4 vCPU/4 GB RAM/40 GB SSD; snapshot quan sát được khoảng 3.8 
 
 ## Quy trình và an toàn
 
-Đọc [AGENTS.md](AGENTS.md) và skill [vps-linux-lab](.agents/skills/vps-linux-lab/SKILL.md) trước khi làm. Quy trình là Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document; risk levels phân biệt diagnostics, lab tạm, system config và thao tác có thể làm mất SSH/dữ liệu. SSH hardening đã chuẩn bị riêng nhưng **chưa áp dụng**: [runbook SSH hardening](docs/runbooks/ssh-hardening.md). Public-service gate cần fresh evidence về ingress và recovery path trước khi triển khai.
+Đọc [AGENTS.md](AGENTS.md) và skill [vps-linux-lab](.agents/skills/vps-linux-lab/SKILL.md) trước khi làm. Với Docker/containerd, dùng skill riêng [container-runtime-lab](.agents/skills/container-runtime-lab/SKILL.md). Quy trình là Assess → Plan → Preflight → Deploy → Verify → Troubleshoot → Document; risk levels phân biệt diagnostics, lab tạm, system config và thao tác có thể làm mất SSH/dữ liệu. SSH hardening đã chuẩn bị riêng nhưng **chưa áp dụng**: [runbook SSH hardening](docs/runbooks/ssh-hardening.md). Docker install, SSH và firewall là các thay đổi riêng, cần preconditions và approval cụ thể.
 
 Không commit credentials, kubeconfig, private SSH keys, raw inventory/logs, host addresses/identifiers hoặc backups. Xem [.gitignore](.gitignore) và workflow [validate.yml](.github/workflows/validate.yml).

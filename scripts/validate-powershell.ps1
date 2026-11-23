@@ -1,6 +1,9 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$files = @(Get-ChildItem -LiteralPath $PSScriptRoot -Recurse -File -Filter '*.ps1' | Sort-Object FullName)
+$files = @(
+    Get-ChildItem -LiteralPath $PSScriptRoot -Recurse -File -Filter '*.ps1'
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'applications/dotnet-sample-api/tests') -Recurse -File -Filter '*.ps1'
+) | Sort-Object FullName
 if ($files.Count -eq 0) { throw 'No PowerShell scripts were found for syntax validation.' }
 
 $failed = 0

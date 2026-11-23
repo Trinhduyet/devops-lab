@@ -13,13 +13,20 @@ Không chuyển phase theo lịch nếu gate hoặc evidence còn thiếu. Mỗi
 | 05 | Filesystem, inode, mount, storage counters, LVM concepts | Hoàn tất read-only; không mount, partition, format hay cấu hình disk. LVM được giải thích, không tạo PV/VG/LV. |
 | 06 | Bash, exit status, quoting, idempotency, temp files, automation | Hoàn tất: private temporary files, idempotency, explicit exit status và exact cleanup PASS. |
 
-## Phase 2 — Docker
+## Phase 2 — Docker và ứng dụng
 
-Sau Linux/network gates: compatibility và firewall review; Docker Engine/Dockerfile/Compose, image layers, volumes, networks, non-root ASP.NET Core sample. Ứng dụng bind localhost trước, truy cập qua SSH tunnel; không public port mặc định. Đánh giá firewall interaction trước package install.
+| Lab | Nội dung | Trạng thái/điều kiện |
+|---|---|---|
+| 07 | Docker Engine, CLI/API, containerd/runc, OCI, OverlayFS, namespaces/cgroups | Tài liệu sẵn sàng; install BLOCKED tới khi live public-service/resource gates đạt và Docker host/network side effects được approve. |
+| 08 | Bridge, veth, DNS, NAT, port publishing, SSH tunnel | BLOCKED; chỉ localhost binding, không mở public app ports. |
+| 09 | Image layers, writable layer, named volumes, bind mounts, disk metrics | BLOCKED; bounded marker data; không prune hoặc format. |
+| 10 | Non-root ASP.NET Core, health, JSON logs, resource limits, Compose | Source build và local HTTP smoke PASS; image/container local và VPS NOT TESTED. |
+
+Đọc từng lab trong `labs/07-docker-engine` tới `labs/10-dotnet-api`. Docker chỉ được cài từ repo chính thức, với exact package versions đã kiểm tra tại thời điểm deploy. Đánh giá firewall/IP forwarding tác động trước; ứng dụng bind localhost và dùng SSH tunnel.
 
 ## Phase 3 — containerd
 
-Học OCI, namespaces, cgroups, containerd/CRI, `ctr`/`crictl`. Thực hiện riêng với Docker runtime lab và cleanup rõ trước khi kubeadm.
+Lab 11 học containerd đi kèm `containerd.io`, OCI, namespaces, snapshots, `ctr` và CRI. Không cài standalone containerd cạnh Docker, không cài kubelet trong lab này. Xem [`labs/11-containerd`](../labs/11-containerd/README.md).
 
 ## Phase 4 — kubeadm single-node
 

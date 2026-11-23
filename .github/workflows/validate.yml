@@ -130,3 +130,24 @@ jobs:
       - name: Exercise SSH, SCP, remote-exit and cleanup paths with mocks
         shell: pwsh
         run: ./scripts/tests/test-run-remote.ps1
+
+  dotnet-sample-api:
+    name: .NET API build and integration smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up pinned .NET SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          dotnet-version: 10.0.404
+
+      - name: Build, exercise health endpoints and verify graceful shutdown
+        run: ./scripts/test-dotnet-api.sh
