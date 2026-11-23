@@ -173,7 +173,7 @@ host_change_check() {
   local evidence=${HOST_CHANGE_EVIDENCE_FILE:-$ROOT/docs/evidence/public-services.env}
   local ssh_client='' ssh_server='' ssh_port=''
   local mem_available_kb='' cpus='' load_one='' disk_available_kb='' disk_used_percent=''
-  local cgroup_type='' ufw_status='' ufw_state='' forward_value='' nft_tables='' iptables_rules='' ip6tables_rules=''
+  local cgroup_type='' ufw_status='' ufw_state='' forward_value=''
 
   section 'Docker host-change management recovery'
   if [[ "${HOST_CHANGE_SSH_KEY_VERIFIED:-}" == PASS && -n "${SSH_CONNECTION:-}" ]]; then
@@ -252,7 +252,7 @@ host_change_check() {
   else
     pass "IPv4 forwarding state was collected (value=$forward_value); Docker bridge startup may alter forwarding/filter rules."
   fi
-  if ! nft_tables=$(nft list tables 2>/dev/null) || ! iptables_rules=$(iptables -S 2>/dev/null) || ! ip6tables_rules=$(ip6tables -S 2>/dev/null); then
+  if ! nft list tables >/dev/null 2>&1 || ! iptables -S >/dev/null 2>&1 || ! ip6tables -S >/dev/null 2>&1; then
     missing 'nftables and both iptables-family rule summaries must be queryable before reviewing Docker network effects.'
   else
     pass 'nftables, IPv4 iptables and IPv6 iptables state were collected without printing raw rules.'

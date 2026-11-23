@@ -13,7 +13,7 @@ TMP_ROOT=$(cd -- "${TMPDIR:-/tmp}" && pwd)
 TEMP_DIR=$(mktemp -d "$TMP_ROOT/devops-dotnet-api.XXXXXXXX")
 APP_LOG="$TEMP_DIR/app.log"
 NUGET_CONFIG="$TEMP_DIR/NuGet.Config"
-NUGET_PACKAGES="$TEMP_DIR/packages"
+NUGET_PACKAGES_PATH="$TEMP_DIR/packages"
 APPDATA_DIR="$TEMP_DIR/appdata"
 HOME_DIR="$TEMP_DIR/home"
 DOTNET_HOME="$TEMP_DIR/dotnet-home"
@@ -102,13 +102,13 @@ XML
 if command -v cygpath >/dev/null 2>&1; then
   APPDATA_DIR=$(cygpath -aw "$APPDATA_DIR")
   HOME_DIR=$(cygpath -aw "$HOME_DIR")
-  NUGET_PACKAGES=$(cygpath -aw "$NUGET_PACKAGES")
+  NUGET_PACKAGES_PATH=$(cygpath -aw "$NUGET_PACKAGES_PATH")
   DOTNET_HOME=$(cygpath -aw "$DOTNET_HOME")
 fi
 
-APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES" \
-  dotnet restore "$PROJECT" --configfile "$NUGET_CONFIG" --packages "$NUGET_PACKAGES"
-APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES" \
+APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES_PATH" \
+  dotnet restore "$PROJECT" --configfile "$NUGET_CONFIG" --packages "$NUGET_PACKAGES_PATH"
+APPDATA="$APPDATA_DIR" HOME="$HOME_DIR" DOTNET_CLI_HOME="$DOTNET_HOME" NUGET_PACKAGES="$NUGET_PACKAGES_PATH" \
   dotnet publish "$PROJECT" --configuration Release --no-restore --output "$TEMP_DIR/publish"
 
 ASPNETCORE_URLS='http://127.0.0.1:0' APP_NAME="$APP_NAME_VALUE" \
