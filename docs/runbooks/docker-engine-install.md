@@ -93,7 +93,7 @@ Before installing, save root-only copies of the current apt sources, UFW configu
 sudo install -d -m 700 /root/devops-lab/docker-install-backup
 sudo sh -c 'umask 077; tar -C / -czf /root/devops-lab/docker-install-backup/config-before.tgz etc/apt/sources.list.d etc/ufw etc/default/ufw'
 if sudo test -d /etc/apt/keyrings; then sudo tar -C / -czf /root/devops-lab/docker-install-backup/keyrings-before.tgz etc/apt/keyrings; else sudo sh -c 'umask 077; printf "absent\n" > /root/devops-lab/docker-install-backup/keyrings-were-absent.txt'; fi
-sudo sh -c 'umask 077; dpkg-query -W -f="${binary:Package}\t${Version}\n" > /root/devops-lab/docker-install-backup/packages-before.txt'
+sudo sh -c 'umask 077; dpkg-query -W -f="\${binary:Package}\t\${Version}\n" > /root/devops-lab/docker-install-backup/packages-before.txt'
 sudo sh -c 'umask 077; sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding > /root/devops-lab/docker-install-backup/forwarding-before.txt'
 sudo sh -c 'umask 077; nft list ruleset > /root/devops-lab/docker-install-backup/nft-before.txt'
 sudo sh -c 'umask 077; iptables-save > /root/devops-lab/docker-install-backup/iptables-before.txt'
