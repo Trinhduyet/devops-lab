@@ -103,7 +103,7 @@ if sudo test -f /root/devops-lab/docker-install-backup/keyrings-before.tgz; then
 sudo ls -l /root/devops-lab/docker-install-backup
 ```
 
-Before the install command, arm and verify a five-minute emergency timer that stops the Docker services if the install session is lost:
+Before the install command, arm and verify a ten-minute emergency timer that stops the Docker services if the install session is lost:
 
 ```bash
 sudo systemd-run --unit=devops-lab-docker-rollback --on-active=10m --timer-property=AccuracySec=1s /usr/bin/systemctl stop docker.service docker.socket containerd.service
