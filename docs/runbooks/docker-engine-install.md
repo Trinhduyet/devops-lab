@@ -64,7 +64,7 @@ Package conflicts are a stop condition. Do not remove conflicting software or re
 
 ## Planned package installation sequence — not executed
 
-Only after the exact approval, complete the backup and rollback preconditions below. Then use Docker's signed apt repository and simulate the exact package operation first:
+Only after the exact approval, complete the backup and rollback preconditions below. Then use Docker's signed apt repository and simulate the exact package operation first. Use `--no-install-recommends`: the default recommendation set also proposes `docker-ce-rootless-extras` and `pigz`, which are unnecessary for this rootful lab and are outside the five-package approval:
 
 ```bash
 sudo apt-get update
@@ -74,13 +74,13 @@ sudo chmod a+r /etc/apt/keyrings/docker.asc
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 sudo apt-get update
 apt-cache policy docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo apt-get -s install docker-ce=5:29.10.0-1~ubuntu.24.04~noble docker-ce-cli=5:29.10.0-1~ubuntu.24.04~noble containerd.io=2.4.2-4~ubuntu.24.04~noble docker-buildx-plugin=0.39.1-1~ubuntu.24.04~noble docker-compose-plugin=5.8.0-1~ubuntu.24.04~noble
+sudo apt-get -s --no-install-recommends install docker-ce=5:29.10.0-1~ubuntu.24.04~noble docker-ce-cli=5:29.10.0-1~ubuntu.24.04~noble containerd.io=2.4.2-4~ubuntu.24.04~noble docker-buildx-plugin=0.39.1-1~ubuntu.24.04~noble docker-compose-plugin=5.8.0-1~ubuntu.24.04~noble
 ```
 
-Review the simulation for removals, unexpected upgrades, provider/network packages and exact versions. Stop if it removes packages or changes anything beyond the reviewed Docker package set. After that review, the approved install command is:
+Review the simulation for removals, unexpected upgrades, provider/network packages and exact versions. Stop if it proposes any package beyond the five reviewed packages, or removes/upgrades/downgrades an existing package. The final install command for approval is:
 
 ```bash
-sudo apt-get install --yes docker-ce=5:29.10.0-1~ubuntu.24.04~noble docker-ce-cli=5:29.10.0-1~ubuntu.24.04~noble containerd.io=2.4.2-4~ubuntu.24.04~noble docker-buildx-plugin=0.39.1-1~ubuntu.24.04~noble docker-compose-plugin=5.8.0-1~ubuntu.24.04~noble
+sudo apt-get install --yes --no-install-recommends docker-ce=5:29.10.0-1~ubuntu.24.04~noble docker-ce-cli=5:29.10.0-1~ubuntu.24.04~noble containerd.io=2.4.2-4~ubuntu.24.04~noble docker-buildx-plugin=0.39.1-1~ubuntu.24.04~noble docker-compose-plugin=5.8.0-1~ubuntu.24.04~noble
 ```
 
 This may start `containerd` and `dockerd`, create `docker0` and Docker-managed iptables/nftables chains, enable IPv4 forwarding, and change the `FORWARD` policy. Published container ports may not pass through UFW's usual input path. Do not edit Docker-created rules or change the UFW/provider firewall in this phase. Keep application mappings bound to `127.0.0.1`; do not expose the Docker API over TCP.
