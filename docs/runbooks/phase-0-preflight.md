@@ -148,5 +148,5 @@ Do not remove the archive until the restored runtime rules, persisted defaults, 
 
 - Linux Labs 01–06 completed with bounded or read-only exercises and verified cleanup; see [progress](../progress.md).
 - SSH hardening remains unapplied. Firewall/security and public ingress remain separate gates; detailed live posture is not published here.
-- External inbound reachability, provider ingress, NAT egress, and authoritative DNS have not been established by a local inventory or NSS lookup.
-- Docker/containerd remain deferred until security, compatibility and resource gates are refreshed. No Kubernetes control-plane ports are exposed by this runbook.
+- Provider/public application ingress and authoritative DNS remain unverified. Host route, resolver, and Docker registry egress over IPv4/IPv6 were checked during Lab 07 on 2026-11-23; no non-SSH public listener was present at final check.
+- Docker Engine and the bounded Lab 07 smoke are complete under the separate host-change approval/gate. Docker/containerd application labs and Kubernetes still require their own compatibility/resource checks. No Kubernetes control-plane ports are exposed by this runbook.

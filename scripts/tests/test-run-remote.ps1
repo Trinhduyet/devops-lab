@@ -15,7 +15,7 @@ Add-Content -LiteralPath $env:MOCK_LOG_PATH -Value ("SSH|{0}|{1}" -f $global:Moc
 if ($env:MOCK_SSH_FAIL_AT -and $global:MockSshCallCount -eq [int]$env:MOCK_SSH_FAIL_AT) { $global:LASTEXITCODE = 255; return }
 if ($global:MockSshCallCount -eq 1) { Write-Output '/tmp/devops-lab.ABCDE123'; $global:LASTEXITCODE = 0; return }
 if ($remoteCommand -like 'bash -n *' -and $env:MOCK_BASH_N_EXIT) { $global:LASTEXITCODE = [int]$env:MOCK_BASH_N_EXIT; return }
-if ($remoteCommand -match "^bash\s+'[^']+/validate\.sh'\s+'lab-03'$") { $global:LASTEXITCODE = [int]$env:MOCK_REMOTE_EXIT; return }
+if ($remoteCommand -match "^bash\s+'[^']+/validate\.sh'\s+'lab-(03|07)'$") { $global:LASTEXITCODE = [int]$env:MOCK_REMOTE_EXIT; return }
 if ($remoteCommand -match "^HOST_CHANGE_SSH_KEY_VERIFIED=PASS HOST_CHANGE_EVIDENCE_FILE='[^']+' bash '[^']+/validate\.sh' 'host-change'$" -or $remoteCommand -match "^PUBLIC_SERVICES_SSH_KEY_VERIFIED=PASS PUBLIC_SERVICES_EVIDENCE_FILE='[^']+' bash '[^']+/validate\.sh' 'public-services'$") { $global:LASTEXITCODE = [int]$env:MOCK_REMOTE_EXIT; return }
 if ($remoteCommand -like '*rm -f*' -and $env:MOCK_CLEANUP_FAIL -eq '1') { $global:LASTEXITCODE = 24; return }
 $global:LASTEXITCODE = 0
@@ -60,6 +60,7 @@ try {
     if (-not (Test-Path -LiteralPath $helper -PathType Leaf)) { throw 'run-remote.ps1 is missing.' }
     Invoke-MockScenario -Name success -ExpectedExit 0 -Environment @{ MOCK_REMOTE_EXIT = 0 } -ExpectedLog 'rm -f'
     Invoke-MockScenario -Name host-change-context -Phase host-change -ExpectedExit 0 -Environment @{ MOCK_REMOTE_EXIT = 0 } -ExpectedLog 'HOST_CHANGE_SSH_KEY_VERIFIED=PASS'
+    Invoke-MockScenario -Name lab07-context -Phase lab-07 -ExpectedExit 0 -Environment @{ MOCK_REMOTE_EXIT = 0 } -ExpectedLog 'lab07-docker-smoke.sh'
     Invoke-MockScenario -Name ssh-create-failure -ExpectedExit 1 -Environment @{ MOCK_SSH_FAIL_AT = 1 } -ExpectedLog 'SSH|1|' -ForbiddenLog 'rm -f'
     Invoke-MockScenario -Name ssh-mkdir-failure -ExpectedExit 1 -Environment @{ MOCK_SSH_FAIL_AT = 2 } -ExpectedLog 'rm -f'
     Invoke-MockScenario -Name remote-bash-syntax-failure -ExpectedExit 1 -Environment @{ MOCK_BASH_N_EXIT = 2 } -ExpectedLog 'rm -f'

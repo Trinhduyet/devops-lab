@@ -17,9 +17,9 @@ Không chuyển phase theo lịch nếu gate hoặc evidence còn thiếu. Mỗi
 
 | Lab | Nội dung | Trạng thái/điều kiện |
 |---|---|---|
-| 07 | Docker Engine, CLI/API, containerd/runc, OCI, OverlayFS, namespaces/cgroups | Runbook/pins sẵn sàng; read-only `host-change` và hosted Docker CI PASS; chờ explicit install approval, second SSH session và rollback preconditions. Public-service gate riêng chỉ cần cho Internet ingress. |
-| 08 | Bridge, veth, DNS, NAT, port publishing, SSH tunnel | BLOCKED cho tới khi Engine cài được duyệt; loopback-only exercises, không mở public app ports. |
-| 09 | Image layers, writable layer, named volumes, bind mounts, disk metrics | BLOCKED; bounded marker data; không prune hoặc format. |
+| 07 | Docker Engine, CLI/API, containerd/runc, OCI, OverlayFS, namespaces/cgroups | PASS trên VPS: exact five-package install, network/resource verification, bounded container smoke, health/DNS/cgroup/shutdown checks và exact cleanup. Hosted Docker CI cũng PASS. Không mở public app ports. |
+| 08 | Bridge, veth, DNS, NAT, port publishing, SSH tunnel | NOT STARTED; Docker Engine đã cài. Lab riêng phải giữ host ports đóng và public exposure là gate độc lập. |
+| 09 | Image layers, writable layer, named volumes, bind mounts, disk metrics | NOT STARTED; chưa chạy storage exercise, không prune hoặc format. |
 | 10 | Non-root ASP.NET Core, health, JSON logs, resource limits, Compose | Linux API/container integration PASS trên hosted runner; local Docker daemon và VPS deployment NOT TESTED. |
 
 Đọc từng lab trong `labs/07-docker-engine` tới `labs/10-dotnet-api`. Docker chỉ được cài từ repo chính thức, với exact package versions đã kiểm tra tại thời điểm deploy. Đánh giá firewall/IP forwarding tác động trước; ứng dụng bind localhost và dùng SSH tunnel.

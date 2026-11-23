@@ -51,6 +51,7 @@ repo_check() {
   for path in README.md AGENTS.md .gitignore docs/progress.md docs/infrastructure.md docs/resource-budget.md docs/architecture.md docs/roadmap.md docs/troubleshooting.md docs/runbooks/phase-0-preflight.md docs/runbooks/ssh-hardening.md docs/runbooks/docker-engine-install.md .agents/skills/vps-linux-lab/SKILL.md .agents/skills/container-runtime-lab/SKILL.md labs/01-linux/README.md labs/02-linux/README.md labs/03-linux/README.md labs/04-linux/README.md labs/05-linux/README.md labs/06-linux/README.md labs/07-docker-engine/README.md labs/08-docker-networking/README.md labs/09-docker-storage/README.md labs/10-dotnet-api/README.md labs/11-containerd/README.md applications/dotnet-sample-api/README.md applications/dotnet-sample-api/.dockerignore applications/dotnet-sample-api/DevOpsLab.SampleApi.csproj applications/dotnet-sample-api/Program.cs applications/dotnet-sample-api/Dockerfile applications/dotnet-sample-api/compose.yaml applications/dotnet-sample-api/tests/smoke.ps1 scripts/preflight.sh scripts/security-baseline.sh scripts/lab01-readonly.sh scripts/lab02-systemd.sh scripts/lab03-performance.sh scripts/lab04-networking.sh scripts/lab05-storage.sh scripts/lab06-bash-automation.sh scripts/test-dotnet-api.sh scripts/test-dotnet-container.sh scripts/validate.sh scripts/run-remote.ps1 scripts/validate-powershell.ps1 scripts/tests/test-run-remote.ps1 scripts/tests/test-validator-evidence.sh .github/workflows/validate.yml; do
     required_file "$path"
   done
+  required_file scripts/lab07-docker-smoke.sh
   for script in "$ROOT"/scripts/*.sh; do
     [[ -f "$script" ]] || continue
     if bash -n "$script"; then pass "bash -n $(basename "$script")"; else status=$?; fail "bash -n $(basename "$script") exit=$status"; fi
@@ -114,6 +115,10 @@ lab05_check() {
 
 lab06_check() {
   run_gate 'bounded Lab 06 Bash automation exercise' "$ROOT/scripts/lab06-bash-automation.sh"
+}
+
+lab07_check() {
+  run_gate 'bounded Docker Engine Lab 07 smoke and exact cleanup' "$ROOT/scripts/lab07-docker-smoke.sh"
 }
 
 manual_recovery_evidence_check() {
@@ -346,7 +351,7 @@ public_services_check() {
 }
 
 usage() {
-  printf 'Usage: %s {repo|phase-0|lab-01|lab-02|lab-03|lab-04|lab-05|lab-06|host-change|public-services}\n' "${0##*/}" >&2
+  printf 'Usage: %s {repo|phase-0|lab-01|lab-02|lab-03|lab-04|lab-05|lab-06|lab-07|host-change|public-services}\n' "${0##*/}" >&2
   exit 2
 }
 
@@ -360,6 +365,7 @@ case "$1" in
   lab-04) lab04_check ;;
   lab-05) lab05_check ;;
   lab-06) lab06_check ;;
+  lab-07) lab07_check ;;
   host-change) host_change_check ;;
   public-services) public_services_check ;;
   *) usage ;;

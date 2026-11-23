@@ -2,7 +2,7 @@
 
 ## Mục tiêu và trạng thái
 
-Hiểu đường đi từ Docker CLI tới kernel, cài Docker Engine qua repository chính thức khi host-change gate và approval đạt, xác minh phiên bản và chạy workload có giới hạn. Việc Compose chỉ bind loopback cần host-change gate nhưng không phải public exposure. Lab này chưa được cài trên VPS; chưa thay đổi host.
+Hiểu đường đi từ Docker CLI tới kernel, cài Docker Engine qua repository chính thức sau khi host-change gate và approval đạt, xác minh phiên bản và chạy workload có giới hạn. Việc Compose chỉ bind loopback cần host-change gate nhưng không phải public exposure. Docker Engine đã cài theo năm pin được duyệt; Lab 07 smoke trên VPS PASS ngày 2026-11-23. Không có public app port.
 
 ## Lý thuyết
 
@@ -28,7 +28,7 @@ docker CLI --Unix socket/API--> dockerd --> containerd --> runc --> Linux kernel
 
 - Đọc [resource budget](../../docs/resource-budget.md), [SSH runbook](../../docs/runbooks/ssh-hardening.md), [UFW runbook](../../docs/runbooks/phase-0-preflight.md), skill [container-runtime-lab](../../.agents/skills/container-runtime-lab/SKILL.md).
 - Trước khi cài: chạy `host-change`; có provider/rescue evidence còn fresh; xác minh SSH recovery, `MemAvailable`, disk free, cgroup v2, `overlay`, forwarding, UFW/nftables, packages và services. Gate `public-services` chỉ áp dụng nếu dịch vụ cần public ingress.
-- Ubuntu 24.04 amd64 được Docker Engine hỗ trợ. Runbook [Docker Engine install](../../docs/runbooks/docker-engine-install.md) ghi exact package versions đã đối chiếu với official index ngày 2026-11-23; refresh index và `apt-cache policy` ngay trước lần cài. Chưa package nào được cài trên VPS.
+- Ubuntu 24.04 amd64 được Docker Engine hỗ trợ. Runbook [Docker Engine install](../../docs/runbooks/docker-engine-install.md) ghi exact package versions đã đối chiếu với official index ngày 2026-11-23 và transaction thực tế. Năm package cài đúng version đã duyệt; không cài standalone containerd.
 - Chỉ cài sau explicit approval cho package cài đặt và side effect Docker lên packet filtering/IP forwarding. Không đồng thời thay đổi SSH/UFW. Không expose port/API.
 - Gate workload tối thiểu: VPS vẫn có ít nhất 1 GiB `MemAvailable`, tối thiểu 5 GiB disk trống, không có `memory`/`io` PSI pressure tăng bất thường trong quan sát liên tiếp. Đây là ngưỡng bảo thủ cho lab, không phải sizing production.
 
@@ -78,7 +78,9 @@ Chạy sample workload chỉ sau khi có image tag và digest được verify, v
 | OCI runtime | `docker inspect <lab-container>` | Image digest, user, state, caps/security options và resource limits khớp khai báo. |
 | API exposure | `sudo ss -lntup` | Docker API chỉ qua Unix socket; không có TCP API listener. |
 
-Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và explicit package/network approval. Runtime evidence: **NOT TESTED** trên VPS; Docker package và service chưa được cài. Docker image/container smoke **PASS** trên GitHub-hosted runner trong run `45109563671`; không tiêu thụ VPS.
+Commands thực thi qua scripts/run-remote.ps1 chỉ sau host-change gate và explicit package/network approval. Runtime evidence trên VPS: phase lab-07 chạy bounded smoke sau khi SSH, route, DNS và registry egress được xác minh. Image busybox:1.36.1, digest sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662; MemAvailable=3414 MiB, root free 35854 MiB. Container dùng 64 MiB memory/swap, 0.25 CPU, 16 PIDs, read-only root, UID 10001:10001, drop all capabilities, no-new-privileges, tmpfs /tmp 4 MiB, bridge network và không bind host port. 90-second systemd watchdog bảo vệ container khi SSH rớt.
+
+Health check và HTTP /health PASS; DNS trong container PASS. Cgroup: cpu.max=25000 100000, memory.max=67108864, pids.max=16. Graceful stop PASS trong 5223 ms, OOM false. Cleanup xóa đúng container, watchdog và image mới pull; container count 0, default network count vẫn 3, volume count 0. Public listener review: chỉ có SSH; không có non-SSH public TCP listener hoặc Docker-published port. Registry trả HTTP 401 qua IPv4/IPv6 (endpoint reachability PASS, không dùng credentials).
 
 ## Troubleshooting
 
@@ -86,6 +88,8 @@ Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và 
 - `overlay`/cgroup error: kiểm tra kernel/fs/cgroup và `docker info`; không tự load module hay đổi sysctl nếu chưa được approve.
 - Container start nhưng API không truy cập: kiểm tra `docker inspect` port mapping, `ss`, Compose binding và SSH tunnel; đừng mở public firewall.
 - Host port xuất hiện public: dừng chính service lab và xác minh binding trước khi làm thêm thay đổi; Docker published ports có thể bypass UFW path.
+- Gawk báo không dùng được tên biến load vì trùng built-in: đặt tên biến khác như average trong awk.
+- Docker inspect có thể trả object rỗng {} cho container không có PortBindings; xác minh không có host mapping, không chỉ so chuỗi null.
 
 ## Security, backup/rollback và cleanup
 
@@ -103,9 +107,10 @@ Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và 
 
 ## Verification và cleanup record
 
-- Docker Engine/VPS deployment: **BLOCKED / NOT TESTED**.
-- Không có temporary workload/container/network/volume tạo trong lần đánh giá này; cleanup: **NOT APPLICABLE**.
-- Chỉ chuyển PASS sau khi cài được duyệt, live verification, bounded exercise và exact cleanup đều có output thật.
+- Docker Engine install và runtime checks: **PASS** — đúng năm package/version được duyệt; dịch vụ Docker, socket và containerd active ở lần kiểm tra cuối.
+- Lab 07 VPS smoke: **PASS** — health endpoint, DNS, limits, cgroup values, graceful stop, no-public-port và exact cleanup đã có output thật.
+- Cleanup: **PASS** — container, watchdog, image mới pull và remote helper temp directory đã được dọn; không tạo network hoặc volume.
+- Lab 07 không mở dịch vụ Internet; public-exposure gate vẫn độc lập. Lab 08 chưa bắt đầu.
 
 ## Tài liệu chính thức
 

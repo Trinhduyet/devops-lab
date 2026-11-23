@@ -2,19 +2,21 @@
 
 ## Status and approval boundary
 
-Docker Engine is a host change because it installs privileged services and modifies packet-filtering/network behavior. Conditional approval for the exact five packages and Docker-managed network effects was received and the install was executed on 2026-11-23. The installation itself completed; the post-install recovery/network gate and Lab 07 smoke remain incomplete after SSH connectivity was lost. A localhost-only workload does not require the `public-services` gate; an Internet-reachable service does.
+Docker Engine is a host change because it installs privileged services and modifies packet-filtering/network behavior. Conditional approval for the exact five packages and Docker-managed network effects was received; installation and Lab 07 smoke completed on 2026-11-23. A localhost-only workload does not require the `public-services` gate; an Internet-reachable service does.
 
 No manual SSH, UFW, provider-firewall, route or forwarding-policy changes are part of this run. The Docker-managed effects below were approved. Do not treat the emergency stop timer as a full network rollback.
 
-## Execution evidence — 2026-11-23 (incomplete)
+## Execution evidence — 2026-11-23 (verified)
 
 Pre-install conditions observed PASS: `host-change` validator exit `0` (`FAIL=0`, `UNKNOWN=0`); 4 vCPU, `MemAvailable=3,604,796 KiB`, load below CPU count, root free `37,142,268 KiB` at 7%, cgroup v2 and OverlayFS. The provider firewall and rescue-console evidence was manually recorded and still accepted by the validator (age `20,349s` at that check); two independent SSH sessions were responsive. The root-only backup passed readback, with directory mode `700` and files mode `600`, owner `root:root`. The official Docker APT update and exact `--no-install-recommends` simulation passed. The simulation reported 5 new packages and no upgrade, removal or downgrade.
 
-The approved install command completed with exit `0`: exactly the five pinned packages were installed. Observed package/runtime versions were Docker Engine `29.10.0`, Compose `5.8.0`, and containerd `2.4.2`. At the first post-install snapshot, Docker, `docker.socket` and containerd were active; Docker reported `overlayfs`, cgroup v2 and the `systemd` cgroup driver. `MemAvailable=3434 MiB`; root free `35855 MiB` at 8%. IPv4 forwarding changed from `0` to `1`; IPv6 forwarding remained `0`. UFW remained inactive. Filtered Docker-related iptables/ip6tables output had 15/11 lines. DNS resolution for the registry succeeded over IPv4 and IPv6.
+The approved install command completed with exit `0`: exactly the five pinned packages were installed. Observed package/runtime versions were Docker Engine `29.10.0`, Compose `5.8.0`, and containerd `2.4.2`. Docker reported `overlayfs`, cgroup v2 and the `systemd` cgroup driver. IPv4 forwarding changed from `0` to `1`; IPv6 forwarding remained `0`. UFW remained inactive. Docker-related iptables/ip6tables summaries contained 15/11 lines.
 
-During the subsequent registry connection probes, both pre-existing SSH sessions reset. A new Windows management-host TCP/22 check over IPv6 failed. The cause is undetermined; do not assume Docker caused it. The timer was verified `ACTIVE` before installation and was not canceled; its current state cannot be inspected while SSH is unavailable and may have fired. It only stops Docker/containerd services and does not restore forwarding or firewall rules.
+Both pre-existing SSH sessions reset during registry probes and an initial new TCP/22 check failed; the cause remains undetermined. SSH later recovered without manual SSH, firewall or routing changes. A fresh key-only connection and a second `host-change` gate passed. At recovery, the emergency timer was inactive and Docker/containerd services were inactive. Network verification then passed: IPv4 and IPv6 routes, DNS, and the Docker registry endpoint over both families (HTTP `401`, expected without registry credentials). The timer was not manually canceled; it only stops Docker/containerd and does not restore forwarding or firewall rules. Docker was started for the approved Lab 07 exercise after SSH/network recovery passed.
 
-Not verified: external registry connectivity over each address family, a new SSH session, public listening ports, current Docker/service/timer state, and the bounded container smoke. No container/image/network was created by Lab 07, so there is no Lab 07 resource cleanup to claim. Do not mark Lab 07 PASS or proceed to Lab 08. After recovery-console access is restored, begin with read-only inspection of the timer/services, forwarding, routes, Docker-managed rules, listeners, DNS and IPv4/IPv6 egress; verify a new independent key-only SSH session before canceling an active timer. Do not edit SSH/UFW/provider policy or blindly restore host-wide packet-filter snapshots.
+The bounded smoke used the newly pulled BusyBox `1.36.1` image (digest `sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662`), default bridge networking, no host port binding, 64 MiB memory/swap, 0.25 CPU, 16 PIDs, read-only root, UID `10001:10001`, dropped capabilities, no-new-privileges and a 90-second stop watchdog. The health check and HTTP `/health` endpoint passed; container DNS passed. Effective cgroup values were `cpu.max=25000 100000`, `memory.max=67108864`, `pids.max=16`. `docker stop --time=5` completed in `5223 ms`; the container exited without OOM. Cleanup verified the exact container removed, watchdog inactive, newly pulled image absent, no lab container, 3 default networks unchanged, and 0 volumes. The remote helper also removed its temporary upload directory.
+
+Final post-lab check: Docker, socket, containerd and SSH active; stop timer inactive; registry returned HTTP `401` over IPv4 and IPv6; DNS passed over both families; public SSH listener present, no other public TCP listeners and no Docker-published ports. Latest snapshot had `MemAvailable=3414 MiB` and root free `35854 MiB` at 8%. Lab 07 is verified; do not advance to Lab 08 automatically. No manual SSH/UFW/provider firewall/routing changes were made.
 
 ## Reviewed package set
 
@@ -116,7 +118,7 @@ sudo ls -l /root/devops-lab/docker-install-backup
 Before the install command, arm and verify a ten-minute emergency timer that stops the Docker services if the install session is lost:
 
 ```bash
-sudo systemd-run --unit=devops-lab-docker-rollback --on-active=10m --timer-property=AccuracySec=1s /usr/bin/systemctl stop docker.service docker.socket containerd.service
+sudo systemd-run --collect --quiet --unit=devops-lab-docker-rollback --on-active=10m --timer-property=AccuracySec=1s /usr/bin/systemctl stop docker.service docker.socket containerd.service
 sudo systemctl is-active devops-lab-docker-rollback.timer
 ```
 
@@ -140,7 +142,7 @@ This package removal is not part of the install approval. It is not a data rollb
 
 ## Post-install verification and cleanup
 
-Verification is partial. Package versions, initial service state, resource snapshot, forwarding values, Docker chain counts, UFW status and DNS resolution were observed. SSH then reset during network probes. Address-family egress, new SSH, listening ports and the smoke workload were NOT VERIFIED; current service and timer states are unknown. Resume from read-only inspection using an independent SSH or the verified rescue console.
+Post-install verification and Lab 07 cleanup PASS for the checks listed in the execution evidence. The transient SSH interruption recovered and was followed by a fresh key-only connection, passing host-change gate, IPv4/IPv6 route/egress/DNS verification, listener review and exact smoke cleanup. Current services were active and the emergency timer inactive at final observation.
 
 Verify versions, services, networking, and no unexpected published ports:
 
@@ -158,7 +160,7 @@ sudo nft list tables
 sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
 ```
 
-Do not record raw host rules or identifiers in Git. Run a bounded container smoke only after post-install resource checks; keep memory, CPU, PIDs and execution time bounded. Stop and remove only the named lab container/network/image, then verify cleanup. A successful package install is not public-service approval and does not prove the host is production ready.
+Do not record raw host rules or identifiers in Git. The bounded smoke was run only after post-install resource checks; memory, CPU, PIDs and duration were capped. Only the named Lab 07 container and the image pulled by that run were removed; no networks or volumes were created. A successful package install is not public-service approval and does not prove the host is production ready.
 
 ## Official sources
 
@@ -167,4 +169,3 @@ Do not record raw host rules or identifiers in Git. Run a bounded container smok
 - [Docker packet filtering and firewalls](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
 - [Docker iptables behavior](https://docs.docker.com/engine/network/firewall-iptables/)
 - [Docker port publishing](https://docs.docker.com/engine/network/port-publishing/)
-

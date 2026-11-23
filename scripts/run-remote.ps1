@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('phase-0', 'lab-01', 'lab-02', 'lab-03', 'lab-04', 'lab-05', 'lab-06', 'host-change', 'public-services')]
+    [ValidateSet('phase-0', 'lab-01', 'lab-02', 'lab-03', 'lab-04', 'lab-05', 'lab-06', 'lab-07', 'host-change', 'public-services')]
     [string]$Phase,
     [string]$SshAlias = 'devops-lab',
     [string]$SshCommand = 'ssh.exe',
@@ -21,6 +21,7 @@ $scriptNames = switch ($Phase) {
     'lab-04' { @('lab04-networking.sh', 'validate.sh') }
     'lab-05' { @('lab05-storage.sh', 'validate.sh') }
     'lab-06' { @('lab06-bash-automation.sh', 'validate.sh') }
+    'lab-07' { @('lab07-docker-smoke.sh', 'validate.sh') }
     'host-change' { @('validate.sh') }
     'public-services' { @('validate.sh') }
 }
