@@ -50,7 +50,7 @@ jobs:
           "$RUNNER_TEMP/gitleaks" version
           printf '%s\n' "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Scan all reachable commits and merge diffs with redaction
+      - name: Scan all reachable commit diffs with redaction
         run: |
           set -euo pipefail
           reachable_count="$(git rev-list --all --count)"
@@ -58,7 +58,16 @@ jobs:
             printf 'FAIL: no commits were reachable from the fetched Git refs.\n' >&2
             exit 1
           fi
-          printf 'Reachable commits across all local refs: %s\n' "$reachable_count"
+          expected_text_count="$(git log --all --full-history --diff-merges=first-parent --diff-filter=d --format='COMMIT:%H' --numstat | awk '
+            /^COMMIT:/ { if (in_commit && has_text_additions) count++; in_commit=1; has_text_additions=0; next }
+            NF >= 3 && $1 != "-" && $1 + 0 > 0 { has_text_additions=1 }
+            END { if (in_commit && has_text_additions) count++; print count + 0 }
+          ')"
+          if [[ ! "$expected_text_count" =~ ^[1-9][0-9]*$ || "$expected_text_count" -gt "$reachable_count" ]]; then
+            printf 'FAIL: could not derive a valid full-history text-addition count from fetched refs.\n' >&2
+            exit 1
+          fi
+          printf 'Fetched history: reachable commits=%s; commits introducing scannable text=%s.\n' "$reachable_count" "$expected_text_count"
           scan_report="$RUNNER_TEMP/gitleaks-report.json"
           set +e
           scan_output="$(gitleaks git --redact=100 --exit-code=2 --report-format=json --report-path="$scan_report" --log-opts='--all --full-history --diff-merges=first-parent' 2>&1)"
@@ -69,9 +78,9 @@ jobs:
             printf 'FAIL: Gitleaks did not report a non-zero full-history scan count (exit=%s). Output suppressed.\n' "$scan_status" >&2
             exit 1
           fi
-          printf 'Gitleaks full-history scan: commits scanned=%s; reachable commits=%s; exit=%s.\n' "$scanned_count" "$reachable_count" "$scan_status"
-          if [[ "$scanned_count" != "$reachable_count" ]]; then
-            printf 'FAIL: Gitleaks scan count does not match all commits reachable from fetched refs.\n' >&2
+          printf 'Gitleaks full-history scan: commits scanned=%s; reachable commits=%s; commits introducing scannable text=%s; exit=%s.\n' "$scanned_count" "$reachable_count" "$expected_text_count" "$scan_status"
+          if (( scanned_count < expected_text_count || scanned_count > reachable_count )); then
+            printf 'FAIL: Gitleaks scan count is outside the full-history text-diff and reachable-commit bounds.\n' >&2
             exit 1
           fi
           if (( scan_status != 0 )); then
