@@ -84,7 +84,8 @@ VPS deployment đang chờ security gate, explicit approval cho từng host chan
 |---|---|
 | Source implementation | PASS — .NET 10 project builds with zero warnings |
 | Windows/local HTTP smoke | PASS — `/`, `/health/live`, `/health/ready` |
-| Graceful shutdown integration | Pending hosted Linux smoke; Windows test process required force cleanup |
+| Linux graceful shutdown integration | PASS — hosted CI observed SIGTERM shutdown log, process exit `0` and exact temporary cleanup |
+| Windows graceful shutdown | NOT TESTED — Windows test process required force cleanup after Ctrl+C did not stop it |
 | Docker image/container on local engine | NOT TESTED — local Docker daemon unavailable at assessment |
 | VPS Docker deployment | BLOCKED — live SSH/UFW security gate failed and each host change needs separate approval |
 | Production readiness | Not claimed |
