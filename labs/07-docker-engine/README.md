@@ -78,7 +78,7 @@ Chạy sample workload chỉ sau khi có image tag và digest được verify, v
 | OCI runtime | `docker inspect <lab-container>` | Image digest, user, state, caps/security options và resource limits khớp khai báo. |
 | API exposure | `sudo ss -lntup` | Docker API chỉ qua Unix socket; không có TCP API listener. |
 
-Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và explicit package/network approval. Runtime evidence: **NOT TESTED** trên VPS; Docker package và service chưa được cài. Docker container smoke chạy trên hosted runner sau khi CI được kích hoạt, không tiêu thụ VPS.
+Commands thực thi qua `scripts/run-remote.ps1` chỉ sau host-change gate và explicit package/network approval. Runtime evidence: **NOT TESTED** trên VPS; Docker package và service chưa được cài. Docker image/container smoke **PASS** trên GitHub-hosted runner trong run `45109563671`; không tiêu thụ VPS.
 
 ## Troubleshooting
 

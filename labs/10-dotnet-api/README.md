@@ -55,9 +55,9 @@ VPS access chỉ bằng `ssh -N -L 8080:127.0.0.1:8080 devops-lab`; không mở 
 | .NET 10 Release source build | PASS, zero warnings/errors, isolated NuGet config/cache |
 | Local HTTP | PASS: `/`, `/health/live`, `/health/ready`; service name config được đọc |
 | Windows graceful SIGTERM | NOT TESTED; lần test process dừng bằng force cleanup sau khi Ctrl+C từ PTY không dừng |
-| Linux CI smoke/shutdown | PASS, hosted run 45102993039 |
+| Linux CI smoke/shutdown | PASS, hosted run 45109563671 |
 | Compose YAML parse | PASS (`docker compose ... config --quiet`) |
-| Docker image/container local | NOT TESTED; Docker daemon không khả dụng |
+| Docker image/container local | NOT TESTED; local Docker daemon không khả dụng; hosted container integration PASS ở run 45109563671 |
 | VPS deployment | BLOCKED pending explicit Docker installation approval and post-install verification; public-exposure gate is separate |
 | Test process cleanup | PASS; exact listener process dừng và test port đóng |
 

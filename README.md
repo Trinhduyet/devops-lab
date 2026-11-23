@@ -30,7 +30,7 @@ ssh devops-lab
 ## Current lab và next lab
 
 - **Linux Labs 01–06:** đã chạy và ghi runtime evidence trong [docs/progress.md](docs/progress.md). Networking/storage chỉ quan sát; Lab 03 dùng transient cgroup bounded workload; Lab 06 sample files được cleanup chính xác.
-- **Docker Labs 07–09, API Lab 10, containerd Lab 11:** học liệu và runbooks đã chuẩn bị. API source build/local HTTP smoke đã qua; Docker image/container và VPS runtime chưa được kiểm chứng. Xem [roadmap](docs/roadmap.md) và [progress](docs/progress.md).
+- **Docker Labs 07–09, API Lab 10, containerd Lab 11:** học liệu và runbooks đã chuẩn bị. Docker build/container smoke và API Linux integration PASS trên GitHub-hosted runner; Docker trên local engine và VPS runtime chưa được kiểm chứng. Xem [roadmap](docs/roadmap.md) và [progress](docs/progress.md).
 
 ## Validation commands
 

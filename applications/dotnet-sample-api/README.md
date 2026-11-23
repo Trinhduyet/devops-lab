@@ -86,7 +86,7 @@ VPS deployment đang chờ security gate, explicit approval cho từng host chan
 | Windows/local HTTP smoke | PASS — `/`, `/health/live`, `/health/ready` |
 | Linux graceful shutdown integration | PASS — hosted CI observed SIGTERM shutdown log, process exit `0` and exact temporary cleanup |
 | Windows graceful shutdown | NOT TESTED — Windows test process required force cleanup after Ctrl+C did not stop it |
-| Docker image/container on local engine | NOT TESTED — local Docker daemon unavailable; hosted-runner container integration is added to CI and awaits its run |
+| Docker image/container on local engine | NOT TESTED — local Docker daemon unavailable; hosted container integration PASS in run 45109563671 |
 | VPS Docker deployment | BLOCKED — live SSH/UFW security gate failed and each host change needs separate approval |
 | Production readiness | Not claimed |
 
